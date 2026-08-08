@@ -92,7 +92,13 @@ public sealed class ReleaseResolver
         try
         {
             var url = $"https://api.github.com/repos/{repo}/releases/latest";
-            using var response = await _http.GetAsync(url, ct).ConfigureAwait(false);
+
+            // Scoped to this request: it is the only call in the app that talks to the GitHub API.
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Accept.ParseAdd("application/vnd.github+json");
+            request.Headers.Add("X-GitHub-Api-Version", "2022-11-28");
+
+            using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
             await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);

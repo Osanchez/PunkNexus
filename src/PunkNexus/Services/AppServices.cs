@@ -27,9 +27,12 @@ public sealed class AppServices
 
         Http = new HttpClient(handler) { Timeout = TimeSpan.FromMinutes(10) };
 
-        // GitHub's API rejects requests without a User-Agent.
+        // GitHub's API rejects requests without a User-Agent, and this is harmless everywhere else.
         Http.DefaultRequestHeaders.UserAgent.ParseAdd($"PunkNexus/{Version}");
-        Http.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+
+        // Deliberately no default Accept header. Mods may be hosted anywhere, and announcing
+        // "application/vnd.github+json" to an unrelated file host is at best meaningless and at
+        // worst a 406. The GitHub API call sets that header on its own request instead.
 
         Settings = new SettingsService();
         Settings.Load();

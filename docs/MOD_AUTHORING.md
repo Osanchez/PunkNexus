@@ -65,14 +65,38 @@ At the root of your mod's folder, next to its project file:
 | `download` | yes | Either `{"url": "https://…"}` or `{"repo": "owner/name", "assetPattern": "Mod-v*.zip"}`. |
 | `sha256` | no | Checked against the download when present. |
 
-### `assetPattern`, and why it exists
+### Hosting your download anywhere
+
+`download` has two forms. Nothing in the client requires GitHub.
+
+**Any host** — a static URL:
+
+```json
+"download": { "url": "https://cdn.example.com/mods/MyMod-2.0.0.zip" },
+"sha256": "9F2C…"
+```
+
+**GitHub releases** — a convenience, so you do not have to edit the URL on every release:
+
+```json
+"download": { "repo": "Osanchez/PunkMods", "assetPattern": "PunkScoreboard-v*.zip" }
+```
 
 Release assets usually embed a version in the filename, so a fixed URL 404s the moment you publish
-a new build. The pattern is matched against the latest release's assets, and the text the `*`
-matches is read as the version — so `PunkScoreboard-v1.1.0.zip` also tells the client the download
-really is 1.1.0, independently of what your manifest claims.
+a new build. The pattern is matched against the latest release's assets. Use exactly one `*`, and
+put it where the version goes.
 
-Use exactly one `*`, and place it where the version goes.
+The version the client shows always comes from the `version` field in this manifest, either way —
+the two forms differ only in how the download is located, never in how the version is known.
+
+`manifestUrl` in the registry is likewise just an https URL. `raw.githubusercontent.com` is one
+option; your own domain works identically.
+
+> **If you host outside a release page, set `sha256`.** GitHub release assets are effectively
+> immutable once published; a file on your own server is not, and neither is anything in front of a
+> cache you do not control. With a hash present the client verifies the download and refuses to
+> install a byte that does not match. Everything the registry lists must be served over **https** —
+> the validator rejects `http://` for both `manifestUrl` and `download.url`.
 
 ---
 

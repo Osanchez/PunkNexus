@@ -59,12 +59,18 @@ Three tiers, and the split is the whole design. Full contract in
 request here, and the day someone forgot, the client would confidently show the wrong version. One
 document, authored once by the developer, serves as the published truth and the installed record.
 
-Downloads resolve by pattern rather than fixed URL, since release assets embed their version in the
-filename and a pinned URL 404s on the next bump:
+**Nothing here requires GitHub.** `manifestUrl` is any https URL, and a mod's `download` is either
+a static URL on any host, or — as a convenience — a repo plus an asset glob, since release assets
+embed their version in the filename and a pinned URL would 404 on the next bump:
 
 ```json
+"download": { "url": "https://cdn.example.com/mods/MyMod-2.0.0.zip" }
 "download": { "repo": "Osanchez/PunkMods", "assetPattern": "PunkScoreboard-v*.zip" }
 ```
+
+The displayed version always comes from the manifest's `version` field either way; the two forms
+differ only in how the download is located. Self-hosted mods should set `sha256`, which the client
+verifies before extracting anything.
 
 If the registry cannot be fetched the client falls back to its disk cache, then to a copy compiled
 into the executable, so it always opens to a usable window.

@@ -33,10 +33,17 @@ public sealed partial class ModsViewModel : ViewModelBase
     {
         _services = services;
         _session = session;
+        // Both halves of NeedsLoader live on the session. Watching only LoaderInstalled misses the
+        // first entry into the shell: the path arrives, but LoaderInstalled is set false-to-false
+        // and raises nothing, so the banner would never appear.
         _session.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName is nameof(GameSession.LoaderInstalled))
+            if (e.PropertyName is nameof(GameSession.LoaderInstalled)
+                or nameof(GameSession.Path)
+                or nameof(GameSession.HasPath))
+            {
                 OnPropertyChanged(nameof(NeedsLoader));
+            }
         };
     }
 

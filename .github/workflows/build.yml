@@ -9,7 +9,7 @@ on:
       - '**.md'
       - '.gitignore'
       - 'LICENSE'
-      - 'manifest/**'      # the catalogue is read at runtime from the repo — it needs no new build
+      - 'manifest/**'      # the catalog is read at runtime from the repo — it needs no new build
   pull_request:
   workflow_dispatch:
 

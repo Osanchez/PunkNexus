@@ -12,15 +12,11 @@
 
         <!-- ============================================ intro -->
         <StackPanel Spacing="14">
-          <StackPanel Orientation="Horizontal" Spacing="14">
-            <Border Width="42" Height="42" CornerRadius="10" Background="{DynamicResource Accent}">
-              <TextBlock Text="N" FontSize="24" FontWeight="Bold" Foreground="White"
-                         HorizontalAlignment="Center" VerticalAlignment="Center" />
-            </Border>
-            <StackPanel VerticalAlignment="Center">
-              <TextBlock Text="PUNK NEXUS" FontSize="16" FontWeight="Bold" LetterSpacing="2" />
-              <TextBlock Text="Mod browser and installer" Classes="dim" />
-            </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="16">
+            <Image Source="avares://PunkNexus/Assets/wordmark.png" Width="123" Height="62" Stretch="None"
+                   VerticalAlignment="Center" />
+            <TextBlock Text="Mod browser and installer" Classes="dim" VerticalAlignment="Bottom"
+                       Margin="0,0,0,8" />
           </StackPanel>
 
           <TextBlock Classes="h1" Text="Find your PUNK install" />

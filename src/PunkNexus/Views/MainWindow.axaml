@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:PunkNexus.ViewModels"
         xmlns:views="using:PunkNexus.Views"
+        xmlns:svc="using:PunkNexus.Services"
         x:Class="PunkNexus.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="PUNK Nexus"
@@ -39,16 +40,13 @@
               BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
         <Grid ColumnDefinitions="Auto,*,Auto" Margin="24,0">
 
-          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12"
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10"
                       VerticalAlignment="Center" Margin="0,10,28,10">
-            <Border Width="30" Height="30" CornerRadius="7" Background="{DynamicResource Accent}">
-              <TextBlock Text="N" FontSize="17" FontWeight="Bold" Foreground="White"
-                         HorizontalAlignment="Center" VerticalAlignment="Center" />
-            </Border>
-            <StackPanel VerticalAlignment="Center">
-              <TextBlock Text="PUNK NEXUS" FontSize="14" FontWeight="Bold" LetterSpacing="1.6" />
-              <TextBlock Text="{Binding AppVersion, StringFormat='v{0}'}" Classes="dim" FontSize="10" />
-            </StackPanel>
+            <!-- Rendered at exactly 74x42 so the pixel grid is not resampled. -->
+            <Image Source="avares://PunkNexus/Assets/wordmark-header.png"
+                   Width="74" Height="42" Stretch="None" />
+            <TextBlock Text="{Binding AppVersion, StringFormat='v{0}'}" Classes="dim" FontSize="10"
+                       VerticalAlignment="Bottom" Margin="0,0,0,4" />
           </StackPanel>
 
           <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom">
@@ -85,5 +83,59 @@
       </Panel>
 
     </Grid>
+
+    <!-- ===================================================== modal overlay -->
+    <!-- Above every page, including setup: the disclaimer has to gate the whole app. -->
+    <Border IsVisible="{Binding Dialogs.IsOpen}" Background="#D6000000">
+      <Border Classes="card" MaxWidth="580" Padding="0"
+              HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24">
+        <StackPanel>
+
+          <!-- severity strip -->
+          <Border Height="3" CornerRadius="10,10,0,0"
+                  Background="{DynamicResource Accent}" IsVisible="{Binding Dialogs.Current.IsInfo}" />
+          <Border Height="3" CornerRadius="10,10,0,0"
+                  Background="{DynamicResource Success}" IsVisible="{Binding Dialogs.Current.IsSuccess}" />
+          <Border Height="3" CornerRadius="10,10,0,0"
+                  Background="{DynamicResource Warning}" IsVisible="{Binding Dialogs.Current.IsWarning}" />
+          <Border Height="3" CornerRadius="10,10,0,0"
+                  Background="{DynamicResource Danger}" IsVisible="{Binding Dialogs.Current.IsDanger}" />
+
+          <StackPanel Margin="24" Spacing="16">
+            <TextBlock Classes="h2" Text="{Binding Dialogs.Current.Title}" />
+            <TextBlock Text="{Binding Dialogs.Current.Message}" Classes="muted" FontSize="13" />
+
+            <Border Background="{DynamicResource Base}" BorderBrush="{DynamicResource Border}"
+                    BorderThickness="1" CornerRadius="6" Padding="14,12"
+                    IsVisible="{Binding Dialogs.Current.HasDetails}">
+              <ItemsControl ItemsSource="{Binding Dialogs.Current.Details}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="svc:DialogDetail">
+                    <Grid ColumnDefinitions="18,*" Margin="0,3">
+                      <TextBlock Grid.Column="0" Text="✓" FontWeight="Bold"
+                                 Foreground="{DynamicResource Success}" IsVisible="{Binding IsOk}" />
+                      <TextBlock Grid.Column="0" Text="✕" FontWeight="Bold"
+                                 Foreground="{DynamicResource Danger}" IsVisible="{Binding IsBad}" />
+                      <TextBlock Grid.Column="0" Text="•" FontWeight="Bold"
+                                 Foreground="{DynamicResource TextDim}" IsVisible="{Binding IsNeutral}" />
+                      <TextBlock Grid.Column="1" Text="{Binding Text}" FontSize="12.5" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </Border>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+              <Button Content="{Binding Dialogs.Current.DeclineText}"
+                      IsVisible="{Binding Dialogs.Current.HasDecline}"
+                      Command="{Binding Dialogs.DeclineCommand}" MinWidth="110" />
+              <Button Classes="primary" Content="{Binding Dialogs.Current.AcceptText}"
+                      Command="{Binding Dialogs.AcceptCommand}" MinWidth="130" />
+            </StackPanel>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Border>
+
   </Panel>
 </Window>

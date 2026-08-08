@@ -1,4 +1,4 @@
-name: Validate catalogue
+name: Validate catalog
 
 # The registry is the one file where a mistake reaches every user at once, and it is the file
 # outside contributors touch. Every pull request against it gets checked before merge.

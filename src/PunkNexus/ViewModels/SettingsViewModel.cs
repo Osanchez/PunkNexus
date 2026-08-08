@@ -148,7 +148,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
 
             if (manifest.Value.Loader is null)
             {
-                Error = "The catalogue does not list a BepInEx download.";
+                Error = "The catalog does not list a BepInEx download.";
                 return;
             }
 
@@ -194,7 +194,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
         _services.Settings.Current.ManifestBaseUrl = url!;
         _services.Settings.Save();
         _services.Resolver.Invalidate();
-        Status = "Catalogue source saved. Refresh the Mods tab to reload.";
+        Status = "Catalog source saved. Refresh the Mods tab to reload.";
         OnPropertyChanged(nameof(IsManifestUrlCustom));
     }
 
@@ -214,7 +214,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
             if (Directory.Exists(AppPaths.CacheDir)) Directory.Delete(AppPaths.CacheDir, recursive: true);
             AppPaths.EnsureCreated();
             _services.Resolver.Invalidate();
-            Status = "Cached catalogue and icons cleared.";
+            Status = "Cached catalog and icons cleared.";
         }
         catch (Exception ex)
         {

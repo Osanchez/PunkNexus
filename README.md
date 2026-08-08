@@ -2,7 +2,7 @@
 
 Mod browser and installer for **PUNK** (the Steam Playtest build). A single Windows executable that
 finds your game install, sets up BepInEx, and installs, updates and removes mods from a published
-catalogue.
+catalog.
 
 > No installer, no .NET runtime to install, nothing to configure. Download `PunkNexus.exe` from the
 > [latest release](https://github.com/Osanchez/PunkNexus/releases/latest) and run it.
@@ -20,12 +20,16 @@ catalogue.
 - **Pulls in dependencies.** A mod whose manifest entry declares `dependencies` installs those
   first, so you never end up with a mod that loads and silently does nothing because its framework
   is missing.
+- **Checks every download before extracting it.** The publisher's `sha256` and the `mod.json`
+  packaged inside the archive are both verified, and the result is shown before a single file is
+  written. A file that fails is never installed.
 - **Server browser** with filters for name, address, players, game mode and installed mods. The feed
   is empty until the relay described in [`docs/SERVER_LIST.md`](docs/SERVER_LIST.md) exists.
 
 ## First run
 
-1. Run `PunkNexus.exe`.
+1. Run `PunkNexus.exe`. It opens with a risk disclaimer that has to be accepted before anything
+   else — mods are third-party code and installing them is at your own risk.
 2. It scans for your install. Confirm the one it found, or browse to the folder containing
    `Punk.exe` (Steam → PUNK Playtest → Manage → Browse local files).
 3. On the Mods tab, click **Install BepInEx**, then launch the game once and quit.
@@ -35,7 +39,7 @@ The game folder can be changed later under **Settings → Game folder**. If the 
 deleted or verified away by Steam, the client notices and drops back to the setup screen rather than
 writing into a folder that is no longer there.
 
-## The catalogue
+## The catalog
 
 Three tiers, and the split is the whole design. Full contract in
 [`docs/MOD_AUTHORING.md`](docs/MOD_AUTHORING.md).
@@ -82,7 +86,7 @@ the fetched manifest agreeing with its listing, dependencies resolvable. Run it 
 ## Game-version compatibility
 
 The client reads the game's version out of `Punk_Data/globalgamemanagers` in the user's own install
-— never from the catalogue — and matches it **exactly** against each mod's declared `gameVersion`.
+— never from the catalog — and matches it **exactly** against each mod's declared `gameVersion`.
 
 | Situation | Result |
 |---|---|
@@ -126,14 +130,14 @@ first navigation.
 | `src/PunkNexus/Services/` | Install detection, download, extraction, manifests, settings |
 | `src/PunkNexus/ViewModels/` | One per screen, plus the shared `GameSession` |
 | `src/PunkNexus/Views/` | Avalonia XAML |
-| `src/PunkNexus/Themes/` | The PUNK theme — colours and control styles |
-| `manifest/` | The published mod and server catalogues |
-| `tools/` | `validate-manifest.py`, the catalogue checker CI runs |
+| `src/PunkNexus/Themes/` | The PUNK theme — colors and control styles |
+| `manifest/` | The published mod and server catalogs |
+| `tools/` | `validate-manifest.py`, the catalog checker CI runs |
 | `docs/` | [Mod authoring contract](docs/MOD_AUTHORING.md), [server list design](docs/SERVER_LIST.md) |
 
 ## Where it keeps things
 
-`%LOCALAPPDATA%\PunkNexus\` holds `settings.json`, the cached catalogue, downloaded icons, the
+`%LOCALAPPDATA%\PunkNexus\` holds `settings.json`, the cached catalog, downloaded icons, the
 per-install file records under `installs\`, and `punknexus.log`. Nothing in there affects the game;
 deleting it resets the client to a first run. **Settings → Maintenance** opens it.
 

@@ -110,11 +110,11 @@
         </StackPanel>
       </Border>
 
-      <!-- ============================================ catalogue -->
+      <!-- ============================================ catalog -->
       <Border Classes="card">
         <StackPanel Spacing="14">
           <StackPanel Spacing="3">
-            <TextBlock Classes="h2" Text="Catalogue source" />
+            <TextBlock Classes="h2" Text="Catalog source" />
             <TextBlock Classes="muted" FontSize="13"
                        Text="Where the mod and server lists are fetched from. Change this only if you are testing your own manifest." />
           </StackPanel>
@@ -136,7 +136,7 @@
           <StackPanel Spacing="3">
             <TextBlock Classes="h2" Text="Maintenance" />
             <TextBlock Classes="muted" FontSize="13"
-                       Text="PUNK Nexus keeps its settings, install records, cached catalogue and log here. Nothing in this folder affects your game." />
+                       Text="PUNK Nexus keeps its settings, install records, cached catalog and log here. Nothing in this folder affects your game." />
           </StackPanel>
 
           <Border Background="{DynamicResource Base}" BorderBrush="{DynamicResource Border}"

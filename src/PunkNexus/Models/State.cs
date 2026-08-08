@@ -11,6 +11,12 @@ public sealed class AppSettings
 
     [JsonPropertyName("verifyChecksums")] public bool VerifyChecksums { get; set; } = true;
 
+    /// <summary>
+    /// Version of the risk disclaimer the user accepted. Stored as a version rather than a bool so
+    /// that materially rewording the warning asks again instead of silently assuming consent.
+    /// </summary>
+    [JsonPropertyName("disclaimerAcceptedVersion")] public int DisclaimerAcceptedVersion { get; set; }
+
     public const string DefaultManifestBaseUrl =
         "https://raw.githubusercontent.com/Osanchez/PunkNexus/main/manifest";
 }

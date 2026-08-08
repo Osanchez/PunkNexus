@@ -9,7 +9,7 @@ public enum ManifestOrigin { Network, Cache, Embedded }
 public sealed record ManifestResult<T>(T Value, ManifestOrigin Origin, string? Warning);
 
 /// <summary>
-/// Loads the catalogue with three fallbacks: the network, then the last good copy on disk, then the
+/// Loads the catalog with three fallbacks: the network, then the last good copy on disk, then the
 /// copy compiled into the exe. A user with no connection still gets a usable window.
 /// </summary>
 public sealed class ManifestService
@@ -44,7 +44,7 @@ public sealed class ManifestService
         var url = $"{baseUrl}/{fileName}";
         var cacheFile = Path.Combine(AppPaths.CacheDir, fileName);
 
-        // Cache-buster: raw.githubusercontent caches aggressively and a stale catalogue looks like
+        // Cache-buster: raw.githubusercontent caches aggressively and a stale catalog looks like
         // a broken refresh button.
         var requestUrl = forceRefresh
             ? $"{url}?t={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}"
@@ -80,7 +80,7 @@ public sealed class ManifestService
                     var parsed = JsonSerializer.Deserialize<T>(json, Options);
                     if (parsed is not null)
                         return new ManifestResult<T>(parsed, ManifestOrigin.Cache,
-                            "Offline — showing the last downloaded catalogue.");
+                            "Offline — showing the last downloaded catalog.");
                 }
             }
             catch (Exception cacheEx)
@@ -90,7 +90,7 @@ public sealed class ManifestService
 
             var embedded = ReadEmbedded<T>(embeddedName);
             return new ManifestResult<T>(embedded ?? new T(), ManifestOrigin.Embedded,
-                "Offline — showing the catalogue built into this version.");
+                "Offline — showing the catalog built into this version.");
         }
     }
 

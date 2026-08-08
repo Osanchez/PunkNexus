@@ -58,7 +58,7 @@ what makes "servers running the mods I have" filterable client-side with no extr
 
 While the relay does not exist, the client reads
 `manifest/servers.json` from this repo — the same shape, hand-edited. Pointing the client at a real
-relay later is a URL change under **Settings → Catalogue source**, not a code change.
+relay later is a URL change under **Settings → Catalog source**, not a code change.
 
 ## Heartbeat (the push side)
 
@@ -71,7 +71,7 @@ Content-Type: application/json
   "gameMode", "region", "version", "passworded", "mods" }
 ```
 
-Expected behaviour:
+Expected behavior:
 
 - Servers heartbeat every **30–60s**. The relay drops an entry it has not heard from in ~3 missed
   beats, so a crashed server ages out instead of lingering.

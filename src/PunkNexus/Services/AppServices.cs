@@ -14,6 +14,7 @@ public sealed class AppServices
     public InstallStateStore State { get; }
     public InstallService Installer { get; }
     public IconCache Icons { get; }
+    public DialogService Dialogs { get; }
 
     public static string Version { get; } =
         Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.0.0";
@@ -43,6 +44,7 @@ public sealed class AppServices
         State = new InstallStateStore();
         Installer = new InstallService(Http, Resolver, State);
         Icons = new IconCache(Http);
+        Dialogs = new DialogService();
     }
 
     public static AppServices Create() => new();

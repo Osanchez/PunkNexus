@@ -11,7 +11,7 @@ public sealed partial class GameSession : ObservableObject
 
     /// <summary>
     /// The version read out of the install. Every compatibility decision is made against this, so
-    /// it is detected from disk rather than taken from the catalogue.
+    /// it is detected from disk rather than taken from the catalog.
     /// </summary>
     [ObservableProperty] private GameBuild _build = GameBuild.Unknown;
 

@@ -3,7 +3,7 @@
 
   <Styles.Resources>
     <!-- PUNK: near-black industrial ground, hot magenta for action, acid for signal. High
-         contrast, few colours, no gradients competing with the content. -->
+         contrast, few colors, no gradients competing with the content. -->
     <Color x:Key="PunkBaseColor">#0A0A0C</Color>
     <Color x:Key="PunkAccentColor">#FF2D6F</Color>
 
@@ -91,7 +91,7 @@
   <!-- Fluent styles the presenter directly for every non-default state, and a setter on the Button
        loses to that. So each variant below paints PART_ContentPresenter explicitly. The variant is
        called "primary" rather than "accent" because Fluent already ships a Button.accent that
-       paints itself the system accent colour (blue) and would win. -->
+       paints itself the system accent color (blue) and would win. -->
   <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource SurfaceHover}" />
     <Setter Property="BorderBrush" Value="{DynamicResource BorderStrong}" />

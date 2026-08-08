@@ -21,6 +21,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private bool _isSettingsTab;
 
     public string AppVersion => AppServices.Version;
+    public DialogService Dialogs => _services.Dialogs;
+
+    /// <summary>Raised when the user declines the disclaimer; the window closes.</summary>
+    public event Action? ShutdownRequested;
 
     public MainWindowViewModel() : this(AppServices.Create()) { }
 
@@ -32,6 +36,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         Mods = new ModsViewModel(services, Session);
         Servers = new ServersViewModel(services);
         SettingsPage = new SettingsViewModel(services, Session);
+
+        // The installer reports what it verified; the shell is what actually shows it.
+        services.Installer.ConfirmDownload = ShowDownloadReportAsync;
 
         Setup.Completed += OnSetupCompleted;
         SettingsPage.GameFolderChanged += () => _ = ReloadForSessionAsync();
@@ -45,6 +52,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     public async Task InitializeAsync()
     {
+        // Nothing else happens until the risk warning is accepted — including finding the game.
+        if (!await AcceptDisclaimerAsync().ConfigureAwait(true))
+        {
+            ShutdownRequested?.Invoke();
+            return;
+        }
+
         var configured = _services.Settings.Current.GamePath;
         var verification = GameLocator.Verify(configured);
 
@@ -61,6 +75,44 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         await Setup.ScanAsync().ConfigureAwait(true);
     }
 
+    private async Task<bool> AcceptDisclaimerAsync()
+    {
+        if (_services.Settings.Current.DisclaimerAcceptedVersion >= Disclaimer.Version) return true;
+
+        var accepted = await _services.Dialogs.ShowAsync(Disclaimer.Request).ConfigureAwait(true);
+        if (!accepted)
+        {
+            Log.Info("Disclaimer declined; exiting.");
+            return false;
+        }
+
+        _services.Settings.Current.DisclaimerAcceptedVersion = Disclaimer.Version;
+        _services.Settings.Save();
+        Log.Info($"Disclaimer v{Disclaimer.Version} accepted.");
+        return true;
+    }
+
+    /// <summary>
+    /// Shows what verification found between download and extraction. A failed check is reported
+    /// with a single button — there is no "install anyway" for a file that is not what it claims.
+    /// </summary>
+    private Task<bool> ShowDownloadReportAsync(DownloadReport report)
+    {
+        var request = new DialogRequest
+        {
+            Title = report.Headline,
+            Message = report.Message,
+            Kind = report.Kind,
+            Details = report.Details
+                .Append(new DialogDetail($"{report.FileName} · {DownloadReport.FormatSize(report.SizeBytes)}"))
+                .ToList(),
+            AcceptText = report.Blocks ? "Close" : "Install",
+            DeclineText = report.Blocks ? null : "Cancel",
+        };
+
+        return _services.Dialogs.ShowAsync(request);
+    }
+
     private void OnSetupCompleted(string path) => _ = EnterMainAsync(path);
 
     private async Task EnterMainAsync(string path)
@@ -69,7 +121,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         Session.LoaderInstalled = _services.Installer.IsLoaderInstalled(path);
 
         // Read the game's version before anything is listed — every compatibility decision below
-        // depends on it, and a wrong answer here silently mis-gates the whole catalogue.
+        // depends on it, and a wrong answer here silently mis-gates the whole catalog.
         Session.Build = await Task.Run(() => GameVersionDetector.Detect(path)).ConfigureAwait(true);
 
         IsSetupVisible = false;

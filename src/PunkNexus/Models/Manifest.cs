@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace PunkNexus.Models;
 
-// The catalogue is three tiers, and the split is the whole point:
+// The catalog is three tiers, and the split is the whole point:
 //
 //   1. The REGISTRY (manifest/mods.json here) is a list of pointers. Developers PR into it once,
 //      to get listed. It never carries a version number, so it cannot go stale.
@@ -21,7 +21,7 @@ public sealed class ModsRegistry
     [JsonPropertyName("updatedUtc")] public string? UpdatedUtc { get; set; }
 
     /// <summary>
-    /// The game build the catalogue is curated against. Informational: the client gates on the
+    /// The game build the catalog is curated against. Informational: the client gates on the
     /// version it detects in the user's own install, not on this.
     /// </summary>
     [JsonPropertyName("targetGameVersion")] public string? TargetGameVersion { get; set; }

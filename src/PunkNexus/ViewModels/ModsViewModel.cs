@@ -105,7 +105,7 @@ public sealed partial class ModsViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            Log.Error("Loading the mod catalogue failed", ex);
+            Log.Error("Loading the mod catalog failed", ex);
             Notice = $"Could not load the mod list: {ex.Message}";
         }
         finally
@@ -122,7 +122,7 @@ public sealed partial class ModsViewModel : ViewModelBase
 
         if (_loader is null)
         {
-            LoaderError = "The catalogue does not list a BepInEx download.";
+            LoaderError = "The catalog does not list a BepInEx download.";
             return;
         }
 
@@ -133,12 +133,14 @@ public sealed partial class ModsViewModel : ViewModelBase
 
         try
         {
-            await _services.Installer
+            var installed = await _services.Installer
                 .InstallLoaderAsync(_session.Path!, _loader, progress, CancellationToken.None)
                 .ConfigureAwait(true);
 
             _session.LoaderInstalled = _services.Installer.IsLoaderInstalled(_session.Path!);
-            Status = "BepInEx installed. Launch the game once, then install mods.";
+            Status = installed
+                ? "BepInEx installed. Launch the game once, then install mods."
+                : "BepInEx was not installed.";
         }
         catch (Exception ex)
         {

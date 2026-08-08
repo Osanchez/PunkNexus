@@ -25,6 +25,9 @@ public partial class MainWindow : Window
         vm.Setup.PickFolder = PickGameFolderAsync;
         vm.SettingsPage.PickFolder = PickGameFolderAsync;
 
+        // Declining the disclaimer closes the client rather than dropping into a disabled shell.
+        vm.ShutdownRequested += Close;
+
         await vm.InitializeAsync();
     }
 

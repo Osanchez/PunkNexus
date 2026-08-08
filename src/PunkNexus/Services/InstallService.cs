@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
+using System.Text.Json;
 using PunkNexus.Models;
 
 namespace PunkNexus.Services;
@@ -16,18 +17,31 @@ public sealed class InstallException : Exception
 /// <summary>
 /// Downloads and applies BepInEx and mods to a verified game folder.
 ///
-/// Everything it needs about a mod comes from that mod's own manifest, so the client never has to
-/// be told twice what a mod is. Every written file is recorded, so an uninstall removes exactly
-/// what was added.
+/// Nothing is written to the game folder until the download has been inspected and the user has
+/// seen what was checked. Everything written is recorded, so an uninstall removes exactly what was
+/// added.
 /// </summary>
 public sealed class InstallService
 {
     private const string LoaderMarkerFile = "winhttp.dll";
     private const string PluginsRelative = "BepInEx/plugins";
 
+    private static readonly JsonSerializerOptions ManifestJson = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        AllowTrailingCommas = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
+    };
+
     private readonly HttpClient _http;
     private readonly ReleaseResolver _resolver;
     private readonly InstallStateStore _store;
+
+    /// <summary>
+    /// Shown between download and extraction. Returns false to abandon the install. Left unset the
+    /// service still refuses a failed verification — the prompt reports, it does not authorize.
+    /// </summary>
+    public Func<DownloadReport, Task<bool>>? ConfirmDownload { get; set; }
 
     public InstallService(HttpClient http, ReleaseResolver resolver, InstallStateStore store)
     {
@@ -47,7 +61,8 @@ public sealed class InstallService
 
     // ---------------------------------------------------------------- install
 
-    public async Task InstallLoaderAsync(
+    /// <returns>False when the user declined at the verification prompt.</returns>
+    public async Task<bool> InstallLoaderAsync(
         string gameRoot, LoaderEntry loader, IProgress<InstallProgress>? progress, CancellationToken ct)
     {
         GuardGameFolder(gameRoot);
@@ -58,9 +73,14 @@ public sealed class InstallService
                         "Could not work out where to download BepInEx from. Check your connection " +
                         "and try again.");
 
-        var zip = await DownloadAsync(asset, loader.Sha256, progress, ct).ConfigureAwait(false);
+        var zip = await DownloadAsync(asset, progress, ct).ConfigureAwait(false);
         try
         {
+            var report = await VerifyAsync(zip, asset, loader.Sha256, loader.Name, null, progress, ct)
+                .ConfigureAwait(false);
+
+            if (!await ConfirmAsync(report).ConfigureAwait(false)) return false;
+
             progress?.Report(new InstallProgress("Installing BepInEx"));
             var written = ZipSafe.Extract(zip, gameRoot, null, ct);
 
@@ -75,6 +95,7 @@ public sealed class InstallService
             _store.Save(gameRoot, state);
 
             Log.Info($"Installed BepInEx ({written.Count} files) into {gameRoot}.");
+            return true;
         }
         finally
         {
@@ -82,7 +103,8 @@ public sealed class InstallService
         }
     }
 
-    public async Task InstallModAsync(
+    /// <returns>False when the user declined at the verification prompt.</returns>
+    public async Task<bool> InstallModAsync(
         string gameRoot, ModManifest manifest, IProgress<InstallProgress>? progress, CancellationToken ct)
     {
         GuardGameFolder(gameRoot);
@@ -96,9 +118,14 @@ public sealed class InstallService
                         $"No download is published for {manifest.Name} yet. Its manifest does not " +
                         "point at a downloadable release.");
 
-        var zip = await DownloadAsync(asset, manifest.Sha256, progress, ct).ConfigureAwait(false);
+        var zip = await DownloadAsync(asset, progress, ct).ConfigureAwait(false);
         try
         {
+            var report = await VerifyAsync(zip, asset, manifest.Sha256, manifest.Name, manifest, progress, ct)
+                .ConfigureAwait(false);
+
+            if (!await ConfirmAsync(report).ConfigureAwait(false)) return false;
+
             progress?.Report(new InstallProgress($"Installing {manifest.Name}"));
 
             // Replacing an existing copy: drop the old files first so a renamed DLL cannot linger
@@ -107,10 +134,6 @@ public sealed class InstallService
                 RemoveModFiles(gameRoot, manifest.Id, manifest.EffectivePluginFolder, manifest.Name, keepState: true);
 
             var written = ZipSafe.Extract(zip, gameRoot, null, ct).ToList();
-
-            // The zip is required to carry mod.json, but write it if the author forgot: the
-            // installed manifest is how every later run knows what version is on disk, and an
-            // install that silently lacks one would read as "unknown version" forever.
             EnsureInstalledManifest(gameRoot, manifest, written);
 
             var state = _store.Load(gameRoot);
@@ -124,6 +147,7 @@ public sealed class InstallService
             _store.Save(gameRoot, state);
 
             Log.Info($"Installed {manifest.Id} {manifest.Version} ({written.Count} files).");
+            return true;
         }
         finally
         {
@@ -140,6 +164,143 @@ public sealed class InstallService
         return Task.CompletedTask;
     }
 
+    // ---------------------------------------------------------------- verification
+
+    /// <summary>
+    /// Everything checkable between "bytes arrived" and "files written": the publisher's checksum,
+    /// and the manifest packaged inside the archive. Runs before extraction so a bad archive costs
+    /// the user nothing.
+    /// </summary>
+    private async Task<DownloadReport> VerifyAsync(
+        string zipPath,
+        ResolvedAsset asset,
+        string? expectedSha256,
+        string modName,
+        ModManifest? published,
+        IProgress<InstallProgress>? progress,
+        CancellationToken ct)
+    {
+        var details = new List<DialogDetail>();
+        var size = new FileInfo(zipPath).Length;
+        var failed = false;
+        var unverified = false;
+
+        // ---- publisher checksum
+        if (!string.IsNullOrWhiteSpace(expectedSha256))
+        {
+            progress?.Report(new InstallProgress("Verifying checksum"));
+            var actual = await Sha256Async(zipPath, ct).ConfigureAwait(false);
+
+            if (actual.Equals(expectedSha256!.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                details.Add(new DialogDetail($"SHA-256 matches the published checksum ({Short(actual)})", true));
+            }
+            else
+            {
+                failed = true;
+                details.Add(new DialogDetail($"SHA-256 does not match. Expected {Short(expectedSha256!)}, got {Short(actual)}", false));
+            }
+        }
+        else
+        {
+            unverified = true;
+            details.Add(new DialogDetail("No checksum was published, so the file could not be verified", null));
+        }
+
+        // ---- the manifest inside the archive
+        if (published is not null)
+        {
+            var entry = $"{PluginsRelative}/{published.EffectivePluginFolder}/{ModManifest.FileName}";
+            var json = ZipSafe.TryReadTextEntry(zipPath, entry);
+
+            if (json is null)
+            {
+                unverified = true;
+                details.Add(new DialogDetail($"The archive contains no {ModManifest.FileName}", null));
+            }
+            else
+            {
+                ModManifest? packaged = null;
+                try { packaged = JsonSerializer.Deserialize<ModManifest>(json, ManifestJson); }
+                catch (Exception ex) { Log.Warn($"Packaged manifest is unreadable: {ex.Message}"); }
+
+                if (packaged is null)
+                {
+                    unverified = true;
+                    details.Add(new DialogDetail($"The packaged {ModManifest.FileName} could not be read", null));
+                }
+                else if (!string.IsNullOrWhiteSpace(packaged.Id) &&
+                         !string.Equals(packaged.Id, published.Id, StringComparison.OrdinalIgnoreCase))
+                {
+                    // A different mod than the one listed. Whatever this is, it is not what the
+                    // user asked for.
+                    failed = true;
+                    details.Add(new DialogDetail(
+                        $"The archive contains '{packaged.Id}', not '{published.Id}'", false));
+                }
+                else
+                {
+                    details.Add(new DialogDetail($"Archive contents identify as {published.Id}", true));
+
+                    if (!string.IsNullOrWhiteSpace(packaged.Version) &&
+                        !string.Equals(packaged.Version, published.Version, StringComparison.OrdinalIgnoreCase))
+                    {
+                        unverified = true;
+                        details.Add(new DialogDetail(
+                            $"Packaged version is {packaged.Version}, but the listing says {published.Version}", null));
+                    }
+                    else if (!string.IsNullOrWhiteSpace(packaged.Version))
+                    {
+                        details.Add(new DialogDetail($"Version {packaged.Version} matches the listing", true));
+                    }
+                }
+            }
+        }
+
+        var verdict = failed ? DownloadVerdict.Failed
+            : unverified ? DownloadVerdict.Unverified
+            : DownloadVerdict.Verified;
+
+        var (headline, message) = verdict switch
+        {
+            DownloadVerdict.Verified => (
+                "Download verified",
+                $"{modName} downloaded and matches the checksum its author published. Install it?"),
+            DownloadVerdict.Unverified => (
+                "Download complete — not verified",
+                $"{modName} downloaded, but nothing proves it is exactly what its author published. " +
+                "Only continue if you trust the source."),
+            _ => (
+                "Download rejected",
+                $"{modName} is not what its manifest describes, so nothing was installed. " +
+                "This can mean a corrupted download or a file that has been altered."),
+        };
+
+        return new DownloadReport(modName, asset.FileName, size, verdict, headline, message, details);
+    }
+
+    /// <summary>
+    /// Shows the report and returns whether to proceed. A failed verification never installs,
+    /// whatever the answer — and with no prompt wired up it still refuses.
+    /// </summary>
+    private async Task<bool> ConfirmAsync(DownloadReport report)
+    {
+        var accepted = ConfirmDownload is null || await ConfirmDownload(report).ConfigureAwait(true);
+
+        if (report.Blocks)
+        {
+            Log.Error($"Refused {report.ModName}: {report.Headline} — " +
+                      string.Join("; ", report.Details.Where(d => d.Ok == false).Select(d => d.Text)));
+            throw new InstallException(report.Message);
+        }
+
+        if (!accepted) Log.Info($"User declined to install {report.ModName} after verification.");
+        return accepted;
+    }
+
+    private static string Short(string hash) =>
+        hash.Length <= 16 ? hash : $"{hash[..8]}…{hash[^8..]}";
+
     /// <summary>
     /// Guarantees the plugin folder holds the manifest that describes what was just installed.
     /// A well-packaged zip already contains it and this is a no-op.
@@ -153,8 +314,8 @@ public sealed class InstallService
         try
         {
             Directory.CreateDirectory(folder);
-            File.WriteAllText(path, System.Text.Json.JsonSerializer.Serialize(
-                manifest, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(path, JsonSerializer.Serialize(
+                manifest, new JsonSerializerOptions { WriteIndented = true }));
 
             var relative = $"{PluginsRelative}/{manifest.EffectivePluginFolder}/{ModManifest.FileName}";
             if (!written.Contains(relative)) written.Add(relative);
@@ -211,7 +372,7 @@ public sealed class InstallService
     // ---------------------------------------------------------------- download
 
     private async Task<string> DownloadAsync(
-        ResolvedAsset asset, string? expectedSha256, IProgress<InstallProgress>? progress, CancellationToken ct)
+        ResolvedAsset asset, IProgress<InstallProgress>? progress, CancellationToken ct)
     {
         AppPaths.EnsureCreated();
         var target = Path.Combine(AppPaths.DownloadsDir, $"{Guid.NewGuid():N}-{asset.FileName}");
@@ -249,19 +410,6 @@ public sealed class InstallService
         {
             TryDelete(target);
             throw new InstallException($"Download failed for {asset.FileName}: {ex.Message}", ex);
-        }
-
-        if (!string.IsNullOrWhiteSpace(expectedSha256))
-        {
-            progress?.Report(new InstallProgress("Verifying download"));
-            var actual = await Sha256Async(target, ct).ConfigureAwait(false);
-            if (!actual.Equals(expectedSha256!.Trim(), StringComparison.OrdinalIgnoreCase))
-            {
-                TryDelete(target);
-                throw new InstallException(
-                    $"{asset.FileName} did not match its expected checksum, so nothing was installed. " +
-                    "Try again; if it keeps failing, report it.");
-            }
         }
 
         return target;

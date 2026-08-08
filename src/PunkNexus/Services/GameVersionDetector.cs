@@ -17,7 +17,7 @@ public sealed record GameBuild(string? Version, string? SteamBuildId, string? St
 
 /// <summary>
 /// Reads the installed game's version out of the install itself, rather than trusting anything the
-/// catalogue claims. Compatibility is gated on this, so it has to come from the user's own disk.
+/// catalog claims. Compatibility is gated on this, so it has to come from the user's own disk.
 /// </summary>
 public static class GameVersionDetector
 {

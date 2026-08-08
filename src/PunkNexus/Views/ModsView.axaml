@@ -73,8 +73,8 @@
         <TextBlock Text="{Binding LoaderError}" FontSize="13" Foreground="{DynamicResource Danger}" />
       </Border>
 
-      <!-- Exact-match gating means a game update can shut the catalogue down; say so plainly
-           rather than leaving a screen of greyed-out buttons unexplained. -->
+      <!-- Exact-match gating means a game update can shut the catalog down; say so plainly
+           rather than leaving a screen of grayed-out buttons unexplained. -->
       <Border Classes="row" Padding="14,11" IsVisible="{Binding HasBlocked}">
         <TextBlock FontSize="13" Foreground="{DynamicResource Warning}">
           <TextBlock.Text>
@@ -112,7 +112,7 @@
           <StackPanel Spacing="6">
             <TextBlock Classes="h2" Text="Nothing matches" />
             <TextBlock Classes="muted"
-                       Text="No mod matches your search and filters. Clear them to see the full catalogue." />
+                       Text="No mod matches your search and filters. Clear them to see the full catalog." />
           </StackPanel>
         </Border>
 

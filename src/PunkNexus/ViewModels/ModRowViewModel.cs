@@ -8,7 +8,7 @@ using PunkNexus.Services;
 namespace PunkNexus.ViewModels;
 
 /// <summary>
-/// One catalogue row. Holds all three tiers at once — the registry listing, the manifest the mod
+/// One catalog row. Holds all three tiers at once — the registry listing, the manifest the mod
 /// publishes, and the manifest found in the install — and every piece of state below is derived
 /// from comparing them.
 /// </summary>
@@ -76,7 +76,7 @@ public sealed partial class ModRowViewModel : ViewModelBase
 
     /// <summary>
     /// The copy on disk was built for a different game version than the one now installed — the
-    /// game updated underneath it. Distinct from a catalogue mismatch, and worth its own warning
+    /// game updated underneath it. Distinct from a catalog mismatch, and worth its own warning
     /// because the mod is live in the user's game right now.
     /// </summary>
     public bool InstalledIsStale =>
@@ -132,7 +132,7 @@ public sealed partial class ModRowViewModel : ViewModelBase
     };
 
     /// <summary>
-    /// Stable per-mod colour. Uses an explicit sum rather than string.GetHashCode, which is
+    /// Stable per-mod color. Uses an explicit sum rather than string.GetHashCode, which is
     /// randomized per process and would repaint the list on every launch.
     /// </summary>
     public IBrush MonogramBrush
@@ -230,19 +230,34 @@ public sealed partial class ModRowViewModel : ViewModelBase
                         $"version. {dependency.Compatibility?.Summary}".TrimEnd());
 
                 BusyText = $"Installing {dependency.Name} (required by {Name})…";
-                await _services.Installer
+                var dependencyInstalled = await _services.Installer
                     .InstallModAsync(_session.Path!, dependency.Published, progress, CancellationToken.None)
                     .ConfigureAwait(true);
 
                 dependency.RefreshInstalledState();
+
+                // Declining a dependency means declining this mod: installing it without its
+                // framework would produce a mod that loads and does nothing.
+                if (!dependencyInstalled)
+                {
+                    await _report($"{Name} was not installed — {dependency.Name} is required.").ConfigureAwait(true);
+                    return;
+                }
+
                 pulled.Add(dependency.Name);
             }
 
-            await _services.Installer
+            var installed = await _services.Installer
                 .InstallModAsync(_session.Path!, Published, progress, CancellationToken.None)
                 .ConfigureAwait(true);
 
             RefreshInstalledState();
+
+            if (!installed)
+            {
+                await _report($"{Name} was not installed.").ConfigureAwait(true);
+                return;
+            }
 
             var message = pulled.Count > 0
                 ? $"{Name} installed, along with {string.Join(" and ", pulled)} which it needs."

@@ -64,6 +64,36 @@ public static class ZipSafe
         return written;
     }
 
+    /// <summary>
+    /// Reads one text entry out of an archive without extracting anything, so the contents can be
+    /// inspected before a single file is committed to the game folder. Path match is
+    /// case-insensitive and separator-agnostic, since archives are written on every platform.
+    /// </summary>
+    public static string? TryReadTextEntry(string zipPath, string relativePath)
+    {
+        var wanted = relativePath.Replace('\\', '/').Trim('/');
+
+        try
+        {
+            using var archive = ZipFile.OpenRead(zipPath);
+            foreach (var entry in archive.Entries)
+            {
+                var name = entry.FullName.Replace('\\', '/').Trim('/');
+                if (!name.Equals(wanted, StringComparison.OrdinalIgnoreCase)) continue;
+
+                using var stream = entry.Open();
+                using var reader = new StreamReader(stream);
+                return reader.ReadToEnd();
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"Could not read '{relativePath}' from {zipPath}: {ex.Message}");
+        }
+
+        return null;
+    }
+
     /// <summary>Lists the file entries in an archive without extracting, for a pre-install preview.</summary>
     public static IReadOnlyList<string> ListFiles(string zipPath)
     {

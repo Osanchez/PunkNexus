@@ -56,7 +56,7 @@ At the root of your mod's folder, next to its project file:
 
 | Field | Required | Notes |
 |---|---|---|
-| `id` | yes | Unique across the catalogue. Letters, digits, `.`, `_`, `-`. Never change it — it is the identity the client tracks installs by. |
+| `id` | yes | Unique across the catalog. Letters, digits, `.`, `_`, `-`. Never change it — it is the identity the client tracks installs by. |
 | `version` | yes | Your mod's current version. **Bump it in the same commit that builds the release.** |
 | `gameVersion` | yes | The game version you built against, e.g. `0.12.10`. Matched **exactly**. |
 | `name` | yes | Display name. |
@@ -158,7 +158,7 @@ python3 tools/validate-manifest.py             # also fetches every mod manifest
 ## Game-version compatibility
 
 `gameVersion` is compared for **exact equality** against the version the client reads out of the
-user's own install (`Punk_Data/globalgamemanagers`), not against anything the catalogue claims.
+user's own install (`Punk_Data/globalgamemanagers`), not against anything the catalog claims.
 
 | Situation | What the user sees |
 |---|---|
@@ -170,7 +170,7 @@ user's own install (`Punk_Data/globalgamemanagers`), not against anything the ca
 Two consequences worth planning around:
 
 **A game update makes your mod uninstallable until you publish a build for it.** That is the
-intended behaviour of exact matching — it trades convenience for never installing a mod into a game
+intended behavior of exact matching — it trades convenience for never installing a mod into a game
 it was not built against. When the game updates, rebuild, bump `gameVersion`, release.
 
 **Users who already installed you keep the mod**, and see an amber *outdated* badge instead: the

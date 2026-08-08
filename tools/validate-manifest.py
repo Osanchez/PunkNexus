@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the PUNK Nexus catalogue.
+"""Validate the PUNK Nexus catalog.
 
 Run on every pull request that touches manifest/. The registry is the one place a mistake reaches
 every user at once — a bad id, an unreachable manifest or a mod whose manifest disagrees with its

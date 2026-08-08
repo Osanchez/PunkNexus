@@ -1,0 +1,44 @@
+using System.Net;
+using System.Reflection;
+
+namespace PunkNexus.Services;
+
+/// <summary>Single composition point for the app's services.</summary>
+public sealed class AppServices
+{
+    public HttpClient Http { get; }
+    public SettingsService Settings { get; }
+    public ManifestService Manifests { get; }
+    public ReleaseResolver Resolver { get; }
+    public InstallStateStore State { get; }
+    public InstallService Installer { get; }
+    public IconCache Icons { get; }
+
+    public static string Version { get; } =
+        Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.0.0";
+
+    private AppServices()
+    {
+        var handler = new HttpClientHandler
+        {
+            AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
+        };
+
+        Http = new HttpClient(handler) { Timeout = TimeSpan.FromMinutes(10) };
+
+        // GitHub's API rejects requests without a User-Agent.
+        Http.DefaultRequestHeaders.UserAgent.ParseAdd($"PunkNexus/{Version}");
+        Http.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+
+        Settings = new SettingsService();
+        Settings.Load();
+
+        Manifests = new ManifestService(Http, Settings);
+        Resolver = new ReleaseResolver(Http);
+        State = new InstallStateStore();
+        Installer = new InstallService(Http, Resolver, State);
+        Icons = new IconCache(Http);
+    }
+
+    public static AppServices Create() => new();
+}

@@ -1,0 +1,89 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PunkNexus.ViewModels"
+        xmlns:views="using:PunkNexus.Views"
+        x:Class="PunkNexus.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="PUNK Nexus"
+        Width="1120" Height="760"
+        MinWidth="920" MinHeight="600"
+        Background="{DynamicResource Base}"
+        WindowStartupLocation="CenterScreen">
+
+  <Window.Resources>
+    <DataTemplate x:Key="SetupTemplate" DataType="vm:SetupViewModel">
+      <views:SetupView />
+    </DataTemplate>
+    <DataTemplate x:Key="ModsTemplate" DataType="vm:ModsViewModel">
+      <views:ModsView />
+    </DataTemplate>
+    <DataTemplate x:Key="ServersTemplate" DataType="vm:ServersViewModel">
+      <views:ServersView />
+    </DataTemplate>
+    <DataTemplate x:Key="SettingsTemplate" DataType="vm:SettingsViewModel">
+      <views:SettingsView />
+    </DataTemplate>
+  </Window.Resources>
+
+  <Panel>
+
+    <!-- Setup gate: nothing else is reachable until a folder verifies. -->
+    <ContentControl Content="{Binding Setup}"
+                    ContentTemplate="{StaticResource SetupTemplate}"
+                    IsVisible="{Binding IsSetupVisible}" />
+
+    <Grid RowDefinitions="Auto,*" IsVisible="{Binding !IsSetupVisible}">
+
+      <!-- ===================================================== header -->
+      <Border Grid.Row="0" Background="{DynamicResource Surface}"
+              BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
+        <Grid ColumnDefinitions="Auto,*,Auto" Margin="24,0">
+
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12"
+                      VerticalAlignment="Center" Margin="0,10,28,10">
+            <Border Width="30" Height="30" CornerRadius="7" Background="{DynamicResource Accent}">
+              <TextBlock Text="N" FontSize="17" FontWeight="Bold" Foreground="White"
+                         HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="PUNK NEXUS" FontSize="14" FontWeight="Bold" LetterSpacing="1.6" />
+              <TextBlock Text="{Binding AppVersion, StringFormat='v{0}'}" Classes="dim" FontSize="10" />
+            </StackPanel>
+          </StackPanel>
+
+          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom">
+            <RadioButton Classes="tab" GroupName="nav" Content="Mods"
+                         IsChecked="{Binding IsModsTab, Mode=TwoWay}" />
+            <RadioButton Classes="tab" GroupName="nav" Content="Servers"
+                         IsChecked="{Binding IsServersTab, Mode=TwoWay}" />
+            <RadioButton Classes="tab" GroupName="nav" Content="Settings"
+                         IsChecked="{Binding IsSettingsTab, Mode=TwoWay}" />
+          </StackPanel>
+
+          <Border Grid.Column="2" Classes="pill" VerticalAlignment="Center"
+                  ToolTip.Tip="{Binding Session.Path}">
+            <StackPanel Orientation="Horizontal" Spacing="7">
+              <Ellipse Width="7" Height="7" VerticalAlignment="Center" Fill="{DynamicResource Success}" />
+              <TextBlock Text="Install verified" />
+            </StackPanel>
+          </Border>
+
+        </Grid>
+      </Border>
+
+      <!-- ===================================================== pages -->
+      <Panel Grid.Row="1">
+        <ContentControl Content="{Binding Mods}"
+                        ContentTemplate="{StaticResource ModsTemplate}"
+                        IsVisible="{Binding IsModsTab}" />
+        <ContentControl Content="{Binding Servers}"
+                        ContentTemplate="{StaticResource ServersTemplate}"
+                        IsVisible="{Binding IsServersTab}" />
+        <ContentControl Content="{Binding SettingsPage}"
+                        ContentTemplate="{StaticResource SettingsTemplate}"
+                        IsVisible="{Binding IsSettingsTab}" />
+      </Panel>
+
+    </Grid>
+  </Panel>
+</Window>

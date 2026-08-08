@@ -1,0 +1,164 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PunkNexus.ViewModels"
+             xmlns:models="using:PunkNexus.Models"
+             x:Class="PunkNexus.Views.ServersView"
+             x:DataType="vm:ServersViewModel">
+
+  <Grid RowDefinitions="Auto,*" Background="{DynamicResource Base}">
+
+    <!-- ==================================================== filters -->
+    <Border Grid.Row="0" Padding="24,20,24,14">
+      <StackPanel Spacing="16">
+
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Grid.Column="0" Spacing="3">
+            <TextBlock Classes="h1" Text="Servers" />
+            <TextBlock Classes="muted" FontSize="13"
+                       Text="{Binding MatchCount, StringFormat='{}{0} server(s) match your filters'}" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <Button Classes="ghost" Content="Clear filters" Command="{Binding ClearFiltersCommand}" />
+            <Button Classes="ghost" Content="Refresh" Command="{Binding RefreshCommand}"
+                    IsEnabled="{Binding !IsLoading}" />
+          </StackPanel>
+        </Grid>
+
+        <Border Classes="card" Padding="16">
+          <StackPanel Spacing="12">
+            <TextBlock Classes="label" Text="FILTERS" />
+
+            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto" RowSpacing="12">
+              <StackPanel Grid.Row="0" Grid.Column="0" Spacing="5">
+                <TextBlock Text="Server name" Classes="dim" />
+                <TextBox Text="{Binding NameFilter, Mode=TwoWay}" Watermark="Any name" />
+              </StackPanel>
+
+              <StackPanel Grid.Row="0" Grid.Column="1" Spacing="5">
+                <TextBlock Text="Address / IP" Classes="dim" />
+                <TextBox Text="{Binding AddressFilter, Mode=TwoWay}" Watermark="Any address" />
+              </StackPanel>
+
+              <StackPanel Grid.Row="0" Grid.Column="2" Spacing="5">
+                <TextBlock Text="Minimum players" Classes="dim" />
+                <TextBox Text="{Binding MinPlayersText, Mode=TwoWay}" Watermark="0" />
+              </StackPanel>
+
+              <StackPanel Grid.Row="1" Grid.Column="0" Spacing="5">
+                <TextBlock Text="Game mode" Classes="dim" />
+                <ComboBox ItemsSource="{Binding GameModes}"
+                          SelectedItem="{Binding SelectedGameMode, Mode=TwoWay}"
+                          HorizontalAlignment="Stretch" />
+              </StackPanel>
+
+              <StackPanel Grid.Row="1" Grid.Column="1" Spacing="5">
+                <TextBlock Text="Installed mod" Classes="dim" />
+                <ComboBox ItemsSource="{Binding ModFilters}"
+                          SelectedItem="{Binding SelectedMod, Mode=TwoWay}"
+                          HorizontalAlignment="Stretch" />
+              </StackPanel>
+
+              <StackPanel Grid.Row="1" Grid.Column="2" Spacing="7" VerticalAlignment="Bottom">
+                <CheckBox Content="Hide empty" IsChecked="{Binding HideEmpty, Mode=TwoWay}" />
+                <CheckBox Content="Hide full" IsChecked="{Binding HideFull, Mode=TwoWay}" />
+              </StackPanel>
+            </Grid>
+          </StackPanel>
+        </Border>
+
+      </StackPanel>
+    </Border>
+
+    <!-- ==================================================== list -->
+    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Spacing="10" Margin="24,0,24,24">
+
+        <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsLoading}" />
+
+        <Border Classes="row" Padding="14,11"
+                IsVisible="{Binding Notice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+          <TextBlock Text="{Binding Notice}" FontSize="13" Foreground="{DynamicResource Warning}" />
+        </Border>
+
+        <!-- Deliberate empty state: the feed exists and is reachable, there is just nothing on it
+             yet. Says so plainly rather than looking like a failure. -->
+        <Border Classes="card" IsVisible="{Binding NothingPublished}">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="h2" Text="No servers published yet" />
+            <TextBlock Classes="muted"
+                       Text="The server list is fed by a published document that game servers heartbeat into. That relay is not running yet, so this list is empty by design — the filters above are live and will work the moment servers start reporting." />
+            <TextBlock Classes="dim"
+                       Text="Nothing here contacts a game server directly: the client only ever reads the published list." />
+          </StackPanel>
+        </Border>
+
+        <Border Classes="card" IsVisible="{Binding NoMatches}">
+          <StackPanel Spacing="6">
+            <TextBlock Classes="h2" Text="Nothing matches" />
+            <TextBlock Classes="muted" Text="No server matches your filters. Clear them to see everything." />
+          </StackPanel>
+        </Border>
+
+        <!-- header row -->
+        <Grid ColumnDefinitions="*,200,90,140,110" ColumnSpacing="12" Margin="14,4,14,0"
+              IsVisible="{Binding HasResults}">
+          <TextBlock Grid.Column="0" Classes="label" Text="NAME" />
+          <TextBlock Grid.Column="1" Classes="label" Text="ADDRESS" />
+          <TextBlock Grid.Column="2" Classes="label" Text="PLAYERS" />
+          <TextBlock Grid.Column="3" Classes="label" Text="MODE" />
+          <TextBlock Grid.Column="4" Classes="label" Text="REGION" />
+        </Grid>
+
+        <ItemsControl ItemsSource="{Binding Visible}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="8" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="models:ServerEntry">
+              <Border Classes="row">
+                <Grid ColumnDefinitions="*,200,90,140,110" ColumnSpacing="12">
+                  <StackPanel Grid.Column="0" Spacing="3">
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14" />
+                    <ItemsControl ItemsSource="{Binding Mods}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <WrapPanel />
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                          <Border Classes="pill" Margin="0,2,5,0">
+                            <TextBlock Text="{Binding}" />
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+
+                  <TextBlock Grid.Column="1" Text="{Binding Endpoint}" Classes="mono muted"
+                             FontSize="12" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="2" VerticalAlignment="Center" FontSize="13">
+                    <TextBlock.Text>
+                      <MultiBinding StringFormat="{}{0}/{1}">
+                        <Binding Path="Players" />
+                        <Binding Path="MaxPlayers" />
+                      </MultiBinding>
+                    </TextBlock.Text>
+                  </TextBlock>
+                  <TextBlock Grid.Column="3" Text="{Binding GameMode}" Classes="muted"
+                             FontSize="13" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="4" Text="{Binding Region}" Classes="muted"
+                             FontSize="13" VerticalAlignment="Center" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

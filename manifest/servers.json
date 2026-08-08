@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "updatedUtc": "2026-08-08T00:00:00Z",
+  "_comment": [
+    "Server list feed. Intentionally empty for now.",
+    "This file is the PULL side of the design: the client only ever reads this document, so game",
+    "servers are never contacted directly by the browser and never see client traffic.",
+    "The PUSH side (a small relay service that servers heartbeat into, which then republishes this",
+    "document) is not built yet - see docs/SERVER_LIST.md for the intended contract.",
+    "The 'servers' array below documents the exact shape the client parses; add entries and the",
+    "Servers tab populates with no client change."
+  ],
+  "servers": []
+}

@@ -1,0 +1,144 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PunkNexus.ViewModels"
+             xmlns:svc="using:PunkNexus.Services"
+             x:Class="PunkNexus.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+  <ScrollViewer Background="{DynamicResource Base}" HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Margin="24,20,24,24" Spacing="16" MaxWidth="880" HorizontalAlignment="Left">
+
+      <TextBlock Classes="h1" Text="Settings" />
+
+      <Border Background="{DynamicResource DangerDim}" BorderBrush="{DynamicResource Danger}"
+              BorderThickness="1" CornerRadius="6" Padding="14,11"
+              IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <TextBlock Text="{Binding Error}" FontSize="13" Foreground="{DynamicResource Danger}" />
+      </Border>
+
+      <Border Classes="row" Padding="14,11"
+              IsVisible="{Binding Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <TextBlock Text="{Binding Status}" FontSize="13" Foreground="{DynamicResource Success}" />
+      </Border>
+
+      <!-- ============================================ game folder -->
+      <Border Classes="card">
+        <StackPanel Spacing="14">
+          <StackPanel Spacing="3">
+            <TextBlock Classes="h2" Text="Game folder" />
+            <TextBlock Classes="muted" FontSize="13"
+                       Text="Where mods are installed. Point this at a different install any time." />
+          </StackPanel>
+
+          <Border Background="{DynamicResource Base}" BorderBrush="{DynamicResource Border}"
+                  BorderThickness="1" CornerRadius="6" Padding="12,10">
+            <TextBlock Text="{Binding GamePath}" Classes="mono" FontSize="12" />
+          </Border>
+
+          <ItemsControl ItemsSource="{Binding Checks}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="svc:VerificationCheck">
+                <Grid ColumnDefinitions="20,*" Margin="0,2">
+                  <TextBlock Grid.Column="0" Text="✓" Foreground="{DynamicResource Success}"
+                             FontWeight="Bold" IsVisible="{Binding Passed}" />
+                  <TextBlock Grid.Column="0" Text="✕" Foreground="{DynamicResource Danger}"
+                             FontWeight="Bold" IsVisible="{Binding !Passed}" />
+                  <TextBlock Grid.Column="1" Text="{Binding Label}" FontSize="12.5" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <Border Classes="banner"
+                  IsVisible="{Binding Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+            <TextBlock Text="{Binding Problem}" FontSize="13" />
+          </Border>
+
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <Button Classes="primary" Content="Change folder…" Command="{Binding ChangeFolderCommand}" />
+            <Button Content="Re-verify" Command="{Binding VerifyCommand}" />
+            <Button Classes="ghost" Content="Open in Explorer" Command="{Binding OpenGameFolderCommand}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- ============================================ loader -->
+      <Border Classes="card">
+        <StackPanel Spacing="14">
+          <StackPanel Spacing="3">
+            <TextBlock Classes="h2" Text="BepInEx" />
+            <TextBlock Classes="muted" FontSize="13"
+                       Text="The loader every mod runs on. Reinstall it if Steam verified your game files and removed it." />
+          </StackPanel>
+
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <Border Classes="pill" IsVisible="{Binding LoaderInstalled}"
+                    Background="#12321F">
+              <TextBlock Text="Installed" Foreground="{DynamicResource Success}" />
+            </Border>
+            <Border Classes="pill" IsVisible="{Binding !LoaderInstalled}"
+                    Background="{DynamicResource DangerDim}">
+              <TextBlock Text="Not installed" Foreground="{DynamicResource Danger}" />
+            </Border>
+            <TextBlock Text="{Binding LoaderVersion, StringFormat='v{0}'}" Classes="dim"
+                       VerticalAlignment="Center"
+                       IsVisible="{Binding LoaderVersion, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          </StackPanel>
+
+          <TextBlock Text="{Binding BusyText}" Classes="dim" IsVisible="{Binding Busy}" />
+          <ProgressBar IsIndeterminate="True" IsVisible="{Binding Busy}" />
+
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <Button Content="Install / repair BepInEx" Command="{Binding ReinstallLoaderCommand}"
+                    IsEnabled="{Binding !Busy}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- ============================================ catalogue -->
+      <Border Classes="card">
+        <StackPanel Spacing="14">
+          <StackPanel Spacing="3">
+            <TextBlock Classes="h2" Text="Catalogue source" />
+            <TextBlock Classes="muted" FontSize="13"
+                       Text="Where the mod and server lists are fetched from. Change this only if you are testing your own manifest." />
+          </StackPanel>
+
+          <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+            <TextBox Grid.Column="0" Text="{Binding ManifestBaseUrl, Mode=TwoWay}"
+                     Classes="mono" FontSize="12" />
+            <Button Grid.Column="1" Content="Save" Command="{Binding SaveManifestUrlCommand}" />
+            <Button Grid.Column="2" Classes="ghost" Content="Reset"
+                    Command="{Binding ResetManifestUrlCommand}"
+                    IsVisible="{Binding IsManifestUrlCustom}" />
+          </Grid>
+        </StackPanel>
+      </Border>
+
+      <!-- ============================================ maintenance -->
+      <Border Classes="card">
+        <StackPanel Spacing="14">
+          <StackPanel Spacing="3">
+            <TextBlock Classes="h2" Text="Maintenance" />
+            <TextBlock Classes="muted" FontSize="13"
+                       Text="PUNK Nexus keeps its settings, install records, cached catalogue and log here. Nothing in this folder affects your game." />
+          </StackPanel>
+
+          <Border Background="{DynamicResource Base}" BorderBrush="{DynamicResource Border}"
+                  BorderThickness="1" CornerRadius="6" Padding="12,10">
+            <TextBlock Text="{Binding DataFolder}" Classes="mono" FontSize="12" />
+          </Border>
+
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <Button Classes="ghost" Content="Open data folder" Command="{Binding OpenDataFolderCommand}" />
+            <Button Classes="ghost" Content="Clear cache" Command="{Binding ClearCacheCommand}" />
+          </StackPanel>
+
+          <Separator />
+          <TextBlock Text="{Binding AppVersion, StringFormat='PUNK Nexus v{0}'}" Classes="dim" />
+        </StackPanel>
+      </Border>
+
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

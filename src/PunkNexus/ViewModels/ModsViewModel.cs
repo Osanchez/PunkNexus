@@ -1,0 +1,226 @@
+using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using PunkNexus.Models;
+using PunkNexus.Services;
+
+namespace PunkNexus.ViewModels;
+
+public sealed partial class ModsViewModel : ViewModelBase
+{
+    private const string AllCategories = "All categories";
+
+    private readonly AppServices _services;
+    private readonly GameSession _session;
+    private readonly List<ModRowViewModel> _all = new();
+
+    private LoaderEntry? _loader;
+
+    public ObservableCollection<ModRowViewModel> Visible { get; } = new();
+    public ObservableCollection<string> Categories { get; } = new() { AllCategories };
+
+    [ObservableProperty] private string _search = "";
+    [ObservableProperty] private string _selectedCategory = AllCategories;
+    [ObservableProperty] private bool _installedOnly;
+    [ObservableProperty] private bool _isLoading;
+    [ObservableProperty] private string? _notice;
+    [ObservableProperty] private string? _status;
+    [ObservableProperty] private bool _loaderBusy;
+    [ObservableProperty] private string? _loaderBusyText;
+    [ObservableProperty] private string? _loaderError;
+
+    public ModsViewModel(AppServices services, GameSession session)
+    {
+        _services = services;
+        _session = session;
+        _session.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(GameSession.LoaderInstalled))
+                OnPropertyChanged(nameof(NeedsLoader));
+        };
+    }
+
+    public bool NeedsLoader => _session.HasPath && !_session.LoaderInstalled;
+    public bool IsEmpty => Visible.Count == 0 && !IsLoading;
+    public int InstalledCount => _all.Count(m => m.IsInstalled);
+    public int TotalCount => _all.Count;
+
+    partial void OnSearchChanged(string value) => ApplyFilter();
+    partial void OnSelectedCategoryChanged(string value) => ApplyFilter();
+    partial void OnInstalledOnlyChanged(bool value) => ApplyFilter();
+
+    [RelayCommand]
+    public async Task RefreshAsync()
+    {
+        IsLoading = true;
+        Notice = null;
+        try
+        {
+            _services.Resolver.Invalidate();
+
+            var result = await _services.Manifests
+                .LoadModsAsync(forceRefresh: true, CancellationToken.None)
+                .ConfigureAwait(true);
+
+            _loader = result.Value.Loader;
+            Notice = result.Warning;
+
+            _all.Clear();
+            foreach (var entry in result.Value.Mods)
+                _all.Add(new ModRowViewModel(entry, _services, _session, ReportAsync));
+
+            var byId = _all.ToDictionary(m => m.Id, StringComparer.OrdinalIgnoreCase);
+            foreach (var row in _all)
+                row.LookupMod = id => byId.GetValueOrDefault(id);
+
+            RebuildCategories();
+            RefreshInstalledState();
+            ApplyFilter();
+
+            // Resolve real download URLs in the background: the list is usable immediately and
+            // each row's version corrects itself as its release lookup lands.
+            _ = ResolveVersionsAsync();
+            _ = LoadIconsAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Loading the mod catalogue failed", ex);
+            Notice = $"Could not load the mod list: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+            OnPropertyChanged(nameof(IsEmpty));
+            OnPropertyChanged(nameof(InstalledCount));
+            OnPropertyChanged(nameof(TotalCount));
+        }
+    }
+
+    [RelayCommand]
+    private async Task InstallLoaderAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_session.Path)) return;
+
+        if (_loader is null)
+        {
+            LoaderError = "The catalogue does not list a BepInEx download.";
+            return;
+        }
+
+        LoaderError = null;
+        LoaderBusy = true;
+
+        var progress = new Progress<InstallProgress>(p => LoaderBusyText = p.Stage);
+
+        try
+        {
+            await _services.Installer
+                .InstallLoaderAsync(_session.Path!, _loader, progress, CancellationToken.None)
+                .ConfigureAwait(true);
+
+            _session.LoaderInstalled = _services.Installer.IsLoaderInstalled(_session.Path!);
+            Status = "BepInEx installed. Launch the game once, then install mods.";
+        }
+        catch (Exception ex)
+        {
+            LoaderError = ex is InstallException ? ex.Message : $"Could not install BepInEx: {ex.Message}";
+            Log.Error("Installing BepInEx failed", ex);
+        }
+        finally
+        {
+            LoaderBusy = false;
+            LoaderBusyText = null;
+            OnPropertyChanged(nameof(NeedsLoader));
+        }
+    }
+
+    public void RefreshInstalledState()
+    {
+        foreach (var row in _all) row.RefreshInstalledState();
+        OnPropertyChanged(nameof(InstalledCount));
+    }
+
+    private async Task ResolveVersionsAsync()
+    {
+        foreach (var row in _all.ToList())
+        {
+            try
+            {
+                var asset = await _services.Resolver
+                    .ResolveAsync(row.Entry.Source, CancellationToken.None)
+                    .ConfigureAwait(true);
+
+                row.ApplyResolvedVersion(asset?.Version);
+            }
+            catch (Exception ex)
+            {
+                Log.Warn($"Could not resolve the latest version of {row.Id}: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task LoadIconsAsync()
+    {
+        foreach (var row in _all.ToList())
+        {
+            try
+            {
+                await row.LoadIconAsync(CancellationToken.None).ConfigureAwait(true);
+            }
+            catch (Exception ex)
+            {
+                Log.Warn($"Could not load the icon for {row.Id}: {ex.Message}");
+            }
+        }
+    }
+
+    private Task ReportAsync(string message)
+    {
+        Status = message;
+        RefreshInstalledState();
+        return Task.CompletedTask;
+    }
+
+    private void RebuildCategories()
+    {
+        var wanted = _all.Select(m => m.Category)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var previous = SelectedCategory;
+
+        Categories.Clear();
+        Categories.Add(AllCategories);
+        foreach (var category in wanted) Categories.Add(category);
+
+        SelectedCategory = Categories.Contains(previous) ? previous : AllCategories;
+    }
+
+    private void ApplyFilter()
+    {
+        var term = Search.Trim();
+
+        IEnumerable<ModRowViewModel> query = _all;
+
+        if (!string.IsNullOrEmpty(term))
+            query = query.Where(m =>
+                m.Name.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                m.Id.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                m.Author.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                m.Description.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                m.Entry.Tags.Any(t => t.Contains(term, StringComparison.OrdinalIgnoreCase)));
+
+        if (!string.Equals(SelectedCategory, AllCategories, StringComparison.Ordinal))
+            query = query.Where(m => string.Equals(m.Category, SelectedCategory, StringComparison.OrdinalIgnoreCase));
+
+        if (InstalledOnly)
+            query = query.Where(m => m.IsInstalled);
+
+        Visible.Clear();
+        foreach (var row in query.OrderBy(m => m.Name, StringComparer.OrdinalIgnoreCase))
+            Visible.Add(row);
+
+        OnPropertyChanged(nameof(IsEmpty));
+    }
+}

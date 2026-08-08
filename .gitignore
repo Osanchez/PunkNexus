@@ -1,0 +1,17 @@
+# Build output
+bin/
+obj/
+dist/
+publish/
+
+# IDE
+.vs/
+.idea/
+*.user
+*.suo
+
+# Never commit binaries — this repo is public and ships only source.
+*.exe
+*.dll
+*.pdb
+*.zip

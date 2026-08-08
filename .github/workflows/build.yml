@@ -1,0 +1,92 @@
+name: Build PUNK Nexus
+
+# Every push builds the Windows executable. Pushes to a branch leave it as a workflow artifact you
+# can download from the run; pushes to main additionally publish it as a GitHub Release.
+on:
+  push:
+    branches: ['**']
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'LICENSE'
+      - 'manifest/**'      # the catalogue is read at runtime from the repo — it needs no new build
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write          # required to create Releases
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore src/PunkNexus/PunkNexus.csproj
+
+      # Self-contained: users double-click the exe with no .NET runtime installed. Trimming stays
+      # off because Avalonia resolves XAML types by name at runtime.
+      - name: Publish (win-x64, single file)
+        run: >
+          dotnet publish src/PunkNexus/PunkNexus.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:DebugType=none
+          -o publish
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive -Path publish/PunkNexus.exe -DestinationPath dist/PunkNexus-win-x64.zip -Force
+          Copy-Item publish/PunkNexus.exe dist/PunkNexus.exe -Force
+          Get-ChildItem dist | ForEach-Object {
+            "{0}  {1:N1} MB" -f $_.Name, ($_.Length / 1MB)
+          }
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PunkNexus-win-x64
+          path: dist/PunkNexus.exe
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Compute version tag
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        id: ver
+        shell: pwsh
+        run: |
+          $tag = "v{0}.{1}" -f (Get-Date -Format 'yyyy.MM.dd'), '${{ github.run_number }}'
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Publish Release
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: PUNK Nexus ${{ steps.ver.outputs.tag }}
+          files: |
+            dist/PunkNexus.exe
+            dist/PunkNexus-win-x64.zip
+          generate_release_notes: true
+          append_body: true
+          body: |
+            Download **PunkNexus.exe** and run it — no installer and no .NET runtime needed.
+
+            On first launch it finds your PUNK install (or lets you pick it), installs BepInEx, and
+            manages mods from there.

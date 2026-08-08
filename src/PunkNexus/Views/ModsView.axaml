@@ -1,0 +1,196 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PunkNexus.ViewModels"
+             x:Class="PunkNexus.Views.ModsView"
+             x:DataType="vm:ModsViewModel">
+
+  <Grid RowDefinitions="Auto,Auto,*" Background="{DynamicResource Base}">
+
+    <!-- ==================================================== toolbar -->
+    <Border Grid.Row="0" Background="{DynamicResource Base}" Padding="24,20,24,14">
+      <StackPanel Spacing="16">
+
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Grid.Column="0" Spacing="3">
+            <TextBlock Classes="h1" Text="Mods" />
+            <TextBlock Classes="muted" FontSize="13">
+              <TextBlock.Text>
+                <MultiBinding StringFormat="{}{0} of {1} installed">
+                  <Binding Path="InstalledCount" />
+                  <Binding Path="TotalCount" />
+                </MultiBinding>
+              </TextBlock.Text>
+            </TextBlock>
+          </StackPanel>
+          <Button Grid.Column="1" Classes="ghost" Content="Refresh" VerticalAlignment="Center"
+                  Command="{Binding RefreshCommand}" IsEnabled="{Binding !IsLoading}" />
+        </Grid>
+
+        <Grid ColumnDefinitions="*,180,Auto" ColumnSpacing="12">
+          <TextBox Grid.Column="0" Text="{Binding Search, Mode=TwoWay}"
+                   Watermark="Search mods, authors, tags…" />
+          <ComboBox Grid.Column="1" ItemsSource="{Binding Categories}"
+                    SelectedItem="{Binding SelectedCategory, Mode=TwoWay}"
+                    HorizontalAlignment="Stretch" />
+          <CheckBox Grid.Column="2" Content="Installed only" VerticalAlignment="Center"
+                    IsChecked="{Binding InstalledOnly, Mode=TwoWay}" />
+        </Grid>
+
+      </StackPanel>
+    </Border>
+
+    <!-- ==================================================== banners -->
+    <StackPanel Grid.Row="1" Margin="24,0,24,12" Spacing="10">
+
+      <!-- BepInEx is the hard prerequisite; nothing else can work without it. -->
+      <Border Classes="banner" IsVisible="{Binding NeedsLoader}">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+          <StackPanel Grid.Column="0" Spacing="3">
+            <TextBlock Text="BepInEx is not installed" FontWeight="SemiBold" FontSize="14" />
+            <TextBlock Classes="muted" FontSize="12.5"
+                       Text="Mods load through BepInEx. Install it once, launch the game once, then add mods." />
+            <TextBlock Text="{Binding LoaderBusyText}" Classes="dim"
+                       IsVisible="{Binding LoaderBusy}" />
+          </StackPanel>
+          <Button Grid.Column="1" Classes="primary" Content="Install BepInEx"
+                  VerticalAlignment="Center" MinWidth="150"
+                  Command="{Binding InstallLoaderCommand}" IsEnabled="{Binding !LoaderBusy}" />
+        </Grid>
+      </Border>
+
+      <Border Background="{DynamicResource DangerDim}" BorderBrush="{DynamicResource Danger}"
+              BorderThickness="1" CornerRadius="6" Padding="14,11"
+              IsVisible="{Binding LoaderError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <TextBlock Text="{Binding LoaderError}" FontSize="13" Foreground="{DynamicResource Danger}" />
+      </Border>
+
+      <Border Classes="row" Padding="14,11"
+              IsVisible="{Binding Notice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <TextBlock Text="{Binding Notice}" FontSize="13" Foreground="{DynamicResource Warning}" />
+      </Border>
+
+      <Border Classes="row" Padding="14,11"
+              IsVisible="{Binding Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <TextBlock Text="{Binding Status}" FontSize="13" Foreground="{DynamicResource Success}" />
+      </Border>
+
+      <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsLoading}" />
+    </StackPanel>
+
+    <!-- ==================================================== list -->
+    <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Spacing="10" Margin="24,0,24,24">
+
+        <Border Classes="card" IsVisible="{Binding IsEmpty}">
+          <StackPanel Spacing="6">
+            <TextBlock Classes="h2" Text="Nothing matches" />
+            <TextBlock Classes="muted"
+                       Text="No mod matches your search and filters. Clear them to see the full catalogue." />
+          </StackPanel>
+        </Border>
+
+        <ItemsControl ItemsSource="{Binding Visible}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="10" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:ModRowViewModel">
+              <Border Classes="row">
+                <StackPanel Spacing="10">
+
+                  <Grid ColumnDefinitions="52,*,Auto" ColumnSpacing="16">
+
+                    <!-- icon, or a stable monogram tile when the mod has none -->
+                    <Panel Grid.Column="0" Width="52" Height="52" VerticalAlignment="Top">
+                      <Border CornerRadius="10" Background="{Binding MonogramBrush}"
+                              IsVisible="{Binding Icon, Converter={x:Static ObjectConverters.IsNull}}">
+                        <TextBlock Text="{Binding Monogram}" FontSize="19" FontWeight="Bold"
+                                   Foreground="#0A0A0C"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      </Border>
+                      <Border CornerRadius="10" ClipToBounds="True"
+                              IsVisible="{Binding Icon, Converter={x:Static ObjectConverters.IsNotNull}}">
+                        <Image Source="{Binding Icon}" Stretch="UniformToFill" />
+                      </Border>
+                    </Panel>
+
+                    <StackPanel Grid.Column="1" Spacing="5">
+                      <StackPanel Orientation="Horizontal" Spacing="9">
+                        <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold"
+                                   VerticalAlignment="Center" />
+                        <Border Classes="pill" VerticalAlignment="Center">
+                          <TextBlock Text="{Binding VersionLabel}" />
+                        </Border>
+                        <Border Classes="pill" VerticalAlignment="Center"
+                                Background="{DynamicResource AccentDim}"
+                                IsVisible="{Binding HasUpdate}">
+                          <TextBlock Text="update" Foreground="{DynamicResource Accent}" />
+                        </Border>
+                      </StackPanel>
+
+                      <TextBlock FontSize="12" Classes="dim">
+                        <TextBlock.Text>
+                          <MultiBinding StringFormat="{}{0} · {1}">
+                            <Binding Path="Author" />
+                            <Binding Path="Category" />
+                          </MultiBinding>
+                        </TextBlock.Text>
+                      </TextBlock>
+
+                      <TextBlock Text="{Binding Description}" Classes="muted" FontSize="12.5"
+                                 MaxLines="3" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Spacing="8" VerticalAlignment="Top" MinWidth="128">
+                      <Button Classes="primary" Content="Install"
+                              HorizontalAlignment="Stretch"
+                              Command="{Binding InstallCommand}"
+                              IsEnabled="{Binding !IsBusy}"
+                              IsVisible="{Binding !IsInstalled}" />
+                      <Button Classes="primary" Content="Update"
+                              HorizontalAlignment="Stretch"
+                              Command="{Binding InstallCommand}"
+                              IsEnabled="{Binding !IsBusy}"
+                              IsVisible="{Binding HasUpdate}" />
+                      <Button Classes="danger" Content="Remove"
+                              HorizontalAlignment="Stretch"
+                              Command="{Binding UninstallCommand}"
+                              IsEnabled="{Binding !IsBusy}"
+                              IsVisible="{Binding IsInstalled}" />
+                      <TextBlock Text="{Binding StatusLabel}" Classes="dim" FontSize="11"
+                                 HorizontalAlignment="Center" />
+                    </StackPanel>
+                  </Grid>
+
+                  <!-- progress -->
+                  <StackPanel Spacing="5" IsVisible="{Binding IsBusy}">
+                    <TextBlock Text="{Binding BusyText}" Classes="dim" FontSize="11" />
+                    <ProgressBar Value="{Binding Progress}" Maximum="100"
+                                 IsIndeterminate="{Binding IsProgressIndeterminate}" />
+                  </StackPanel>
+
+                  <!-- per-row failure, dismissible so one bad mod doesn't block the list -->
+                  <Border Background="{DynamicResource DangerDim}" BorderBrush="{DynamicResource Danger}"
+                          BorderThickness="1" CornerRadius="6" Padding="12,9"
+                          IsVisible="{Binding HasError}">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                      <TextBlock Grid.Column="0" Text="{Binding Error}" FontSize="12"
+                                 Foreground="{DynamicResource Danger}" />
+                      <Button Grid.Column="1" Classes="ghost" Content="Dismiss" FontSize="11"
+                              Command="{Binding DismissErrorCommand}" />
+                    </Grid>
+                  </Border>
+
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

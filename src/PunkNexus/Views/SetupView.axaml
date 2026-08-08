@@ -1,0 +1,120 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PunkNexus.ViewModels"
+             xmlns:svc="using:PunkNexus.Services"
+             x:Class="PunkNexus.Views.SetupView"
+             x:DataType="vm:SetupViewModel">
+
+  <ScrollViewer Background="{DynamicResource Base}" HorizontalScrollBarVisibility="Disabled">
+    <Grid RowDefinitions="*,Auto,*">
+
+      <StackPanel Grid.Row="1" MaxWidth="720" Margin="32,40" Spacing="22">
+
+        <!-- ============================================ intro -->
+        <StackPanel Spacing="14">
+          <StackPanel Orientation="Horizontal" Spacing="14">
+            <Border Width="42" Height="42" CornerRadius="10" Background="{DynamicResource Accent}">
+              <TextBlock Text="N" FontSize="24" FontWeight="Bold" Foreground="White"
+                         HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="PUNK NEXUS" FontSize="16" FontWeight="Bold" LetterSpacing="2" />
+              <TextBlock Text="Mod browser and installer" Classes="dim" />
+            </StackPanel>
+          </StackPanel>
+
+          <TextBlock Classes="h1" Text="Find your PUNK install" />
+          <TextBlock Classes="muted"
+                     Text="PUNK Nexus installs mods straight into your game folder, so it needs to know where that is. It has to be the folder containing Punk.exe — in Steam: PUNK Playtest → Manage → Browse local files." />
+        </StackPanel>
+
+        <!-- ============================================ detection -->
+        <Border Classes="card">
+          <StackPanel Spacing="14">
+
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Grid.Column="0" Spacing="3">
+                <TextBlock Classes="label" Text="DETECTED INSTALLS" />
+                <TextBlock Text="{Binding ScanSummary}" Classes="muted" FontSize="13" />
+              </StackPanel>
+              <Button Grid.Column="1" Classes="ghost" Content="Scan again"
+                      Command="{Binding ScanCommand}"
+                      IsEnabled="{Binding !IsScanning}" VerticalAlignment="Top" />
+            </Grid>
+
+            <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsScanning}" />
+
+            <ListBox ItemsSource="{Binding Detected}"
+                     SelectedItem="{Binding SelectedPath, Mode=TwoWay}"
+                     Background="Transparent" BorderThickness="0"
+                     MaxHeight="180"
+                     IsVisible="{Binding HasDetected}">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                  <TextBlock Text="{Binding}" Classes="mono" FontSize="12" TextWrapping="NoWrap" />
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+
+            <Separator />
+
+            <StackPanel Spacing="9">
+              <TextBlock Classes="label" Text="OR CHOOSE IT YOURSELF" />
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <TextBox Grid.Column="0" Text="{Binding SelectedPath, Mode=TwoWay}"
+                         Watermark="C:\Program Files (x86)\Steam\steamapps\common\PUNK Playtest"
+                         Classes="mono" FontSize="12" />
+                <Button Grid.Column="1" Content="Browse…" Command="{Binding BrowseCommand}" />
+              </Grid>
+            </StackPanel>
+
+          </StackPanel>
+        </Border>
+
+        <!-- ============================================ verification -->
+        <Border Classes="card" IsVisible="{Binding HasChecked}">
+          <StackPanel Spacing="14">
+            <TextBlock Classes="label" Text="VERIFICATION" />
+
+            <ItemsControl ItemsSource="{Binding Checks}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="svc:VerificationCheck">
+                  <Grid ColumnDefinitions="20,*,Auto" Margin="0,3">
+                    <TextBlock Grid.Column="0" Text="✓" Foreground="{DynamicResource Success}"
+                               FontWeight="Bold" IsVisible="{Binding Passed}" />
+                    <TextBlock Grid.Column="0" Text="✕" Foreground="{DynamicResource Danger}"
+                               FontWeight="Bold" IsVisible="{Binding !Passed}" />
+                    <TextBlock Grid.Column="1" Text="{Binding Label}" FontSize="13" />
+                    <Border Grid.Column="2" Classes="pill" IsVisible="{Binding Required}">
+                      <TextBlock Text="required" />
+                    </Border>
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Border Classes="banner" IsVisible="{Binding Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+              <TextBlock Text="{Binding Problem}" FontSize="13" />
+            </Border>
+
+            <Border Background="#12321F" BorderBrush="{DynamicResource Success}" BorderThickness="1"
+                    CornerRadius="6" Padding="14,12" IsVisible="{Binding IsVerified}">
+              <TextBlock Text="This is a valid PUNK install. You're good to go."
+                         FontSize="13" Foreground="{DynamicResource Success}" />
+            </Border>
+          </StackPanel>
+        </Border>
+
+        <!-- ============================================ confirm -->
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Grid.Column="0" Classes="dim" VerticalAlignment="Center"
+                     Text="You can change this later in Settings." />
+          <Button Grid.Column="1" Classes="primary" Content="Continue"
+                  Command="{Binding ConfirmCommand}"
+                  IsEnabled="{Binding IsVerified}" MinWidth="140" />
+        </Grid>
+
+      </StackPanel>
+    </Grid>
+  </ScrollViewer>
+</UserControl>

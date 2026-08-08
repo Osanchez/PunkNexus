@@ -22,6 +22,7 @@ public sealed partial class ModsViewModel : ViewModelBase
     [ObservableProperty] private string _search = "";
     [ObservableProperty] private string _selectedCategory = AllCategories;
     [ObservableProperty] private bool _installedOnly;
+    [ObservableProperty] private bool _compatibleOnly;
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private string? _notice;
     [ObservableProperty] private string? _status;
@@ -33,6 +34,7 @@ public sealed partial class ModsViewModel : ViewModelBase
     {
         _services = services;
         _session = session;
+
         // Both halves of NeedsLoader live on the session. Watching only LoaderInstalled misses the
         // first entry into the shell: the path arrives, but LoaderInstalled is set false-to-false
         // and raises nothing, so the banner would never appear.
@@ -44,6 +46,9 @@ public sealed partial class ModsViewModel : ViewModelBase
             {
                 OnPropertyChanged(nameof(NeedsLoader));
             }
+
+            if (e.PropertyName is nameof(GameSession.Build))
+                OnPropertyChanged(nameof(GameVersionLabel));
         };
     }
 
@@ -52,9 +57,20 @@ public sealed partial class ModsViewModel : ViewModelBase
     public int InstalledCount => _all.Count(m => m.IsInstalled);
     public int TotalCount => _all.Count;
 
+    /// <summary>How many listed mods cannot be installed on this game build.</summary>
+    public int BlockedCount => _all.Count(m => m.IsBlocked);
+    public bool HasBlocked => BlockedCount > 0;
+
+    public string GameVersionLabel => _session.Build.HasVersion
+        ? $"Game {_session.Build.Version}"
+        : "Game version unknown";
+
+    public bool GameVersionUnknown => !_session.Build.HasVersion;
+
     partial void OnSearchChanged(string value) => ApplyFilter();
     partial void OnSelectedCategoryChanged(string value) => ApplyFilter();
     partial void OnInstalledOnlyChanged(bool value) => ApplyFilter();
+    partial void OnCompatibleOnlyChanged(bool value) => ApplyFilter();
 
     [RelayCommand]
     public async Task RefreshAsync()
@@ -66,14 +82,14 @@ public sealed partial class ModsViewModel : ViewModelBase
             _services.Resolver.Invalidate();
 
             var result = await _services.Manifests
-                .LoadModsAsync(forceRefresh: true, CancellationToken.None)
+                .LoadRegistryAsync(forceRefresh: true, CancellationToken.None)
                 .ConfigureAwait(true);
 
             _loader = result.Value.Loader;
             Notice = result.Warning;
 
             _all.Clear();
-            foreach (var entry in result.Value.Mods)
+            foreach (var entry in result.Value.Mods.Where(m => m.Enabled))
                 _all.Add(new ModRowViewModel(entry, _services, _session, ReportAsync));
 
             var byId = _all.ToDictionary(m => m.Id, StringComparer.OrdinalIgnoreCase);
@@ -81,13 +97,11 @@ public sealed partial class ModsViewModel : ViewModelBase
                 row.LookupMod = id => byId.GetValueOrDefault(id);
 
             RebuildCategories();
-            RefreshInstalledState();
             ApplyFilter();
 
-            // Resolve real download URLs in the background: the list is usable immediately and
-            // each row's version corrects itself as its release lookup lands.
-            _ = ResolveVersionsAsync();
-            _ = LoadIconsAsync();
+            // Each row fetches its own manifest. The list is usable immediately and every row
+            // settles into its real version and compatibility as its fetch lands.
+            _ = ResolveAllAsync();
         }
         catch (Exception ex)
         {
@@ -97,9 +111,7 @@ public sealed partial class ModsViewModel : ViewModelBase
         finally
         {
             IsLoading = false;
-            OnPropertyChanged(nameof(IsEmpty));
-            OnPropertyChanged(nameof(InstalledCount));
-            OnPropertyChanged(nameof(TotalCount));
+            NotifyCounts();
         }
     }
 
@@ -144,41 +156,26 @@ public sealed partial class ModsViewModel : ViewModelBase
     public void RefreshInstalledState()
     {
         foreach (var row in _all) row.RefreshInstalledState();
-        OnPropertyChanged(nameof(InstalledCount));
+        NotifyCounts();
     }
 
-    private async Task ResolveVersionsAsync()
+    private async Task ResolveAllAsync()
     {
         foreach (var row in _all.ToList())
         {
             try
             {
-                var asset = await _services.Resolver
-                    .ResolveAsync(row.Entry.Source, CancellationToken.None)
-                    .ConfigureAwait(true);
-
-                row.ApplyResolvedVersion(asset?.Version);
+                await row.ResolveAsync(CancellationToken.None).ConfigureAwait(true);
+                _ = row.LoadIconAsync(CancellationToken.None);
             }
             catch (Exception ex)
             {
-                Log.Warn($"Could not resolve the latest version of {row.Id}: {ex.Message}");
+                Log.Warn($"Could not resolve {row.Id}: {ex.Message}");
             }
         }
-    }
 
-    private async Task LoadIconsAsync()
-    {
-        foreach (var row in _all.ToList())
-        {
-            try
-            {
-                await row.LoadIconAsync(CancellationToken.None).ConfigureAwait(true);
-            }
-            catch (Exception ex)
-            {
-                Log.Warn($"Could not load the icon for {row.Id}: {ex.Message}");
-            }
-        }
+        NotifyCounts();
+        ApplyFilter();
     }
 
     private Task ReportAsync(string message)
@@ -186,6 +183,17 @@ public sealed partial class ModsViewModel : ViewModelBase
         Status = message;
         RefreshInstalledState();
         return Task.CompletedTask;
+    }
+
+    private void NotifyCounts()
+    {
+        OnPropertyChanged(nameof(IsEmpty));
+        OnPropertyChanged(nameof(InstalledCount));
+        OnPropertyChanged(nameof(TotalCount));
+        OnPropertyChanged(nameof(BlockedCount));
+        OnPropertyChanged(nameof(HasBlocked));
+        OnPropertyChanged(nameof(GameVersionLabel));
+        OnPropertyChanged(nameof(GameVersionUnknown));
     }
 
     private void RebuildCategories()
@@ -216,13 +224,16 @@ public sealed partial class ModsViewModel : ViewModelBase
                 m.Id.Contains(term, StringComparison.OrdinalIgnoreCase) ||
                 m.Author.Contains(term, StringComparison.OrdinalIgnoreCase) ||
                 m.Description.Contains(term, StringComparison.OrdinalIgnoreCase) ||
-                m.Entry.Tags.Any(t => t.Contains(term, StringComparison.OrdinalIgnoreCase)));
+                m.Tags.Any(t => t.Contains(term, StringComparison.OrdinalIgnoreCase)));
 
         if (!string.Equals(SelectedCategory, AllCategories, StringComparison.Ordinal))
             query = query.Where(m => string.Equals(m.Category, SelectedCategory, StringComparison.OrdinalIgnoreCase));
 
-        if (InstalledOnly)
-            query = query.Where(m => m.IsInstalled);
+        if (InstalledOnly) query = query.Where(m => m.IsInstalled);
+
+        // Installed mods stay visible even when blocked, so a mod that the game has outgrown can
+        // still be found and removed.
+        if (CompatibleOnly) query = query.Where(m => !m.IsBlocked || m.IsInstalled);
 
         Visible.Clear();
         foreach (var row in query.OrderBy(m => m.Name, StringComparer.OrdinalIgnoreCase))

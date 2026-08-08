@@ -16,8 +16,9 @@ public sealed class InstallException : Exception
 /// <summary>
 /// Downloads and applies BepInEx and mods to a verified game folder.
 ///
-/// Every write is recorded so an uninstall removes exactly what was added. Disk is the source of
-/// truth for "is it installed" — a mod extracted by hand still shows as installed.
+/// Everything it needs about a mod comes from that mod's own manifest, so the client never has to
+/// be told twice what a mod is. Every written file is recorded, so an uninstall removes exactly
+/// what was added.
 /// </summary>
 public sealed class InstallService
 {
@@ -41,38 +42,8 @@ public sealed class InstallService
         File.Exists(Path.Combine(gameRoot, LoaderMarkerFile)) &&
         Directory.Exists(Path.Combine(gameRoot, "BepInEx", "core"));
 
-    public bool IsModInstalled(string gameRoot, ModEntry mod) =>
-        Directory.Exists(PluginFolderPath(gameRoot, mod));
-
-    /// <summary>
-    /// The installed version. Prefers our own record, then the mod.yaml the mod ships, so a
-    /// hand-extracted zip still reports a version instead of "unknown".
-    /// </summary>
-    public string? GetInstalledVersion(string gameRoot, ModEntry mod)
-    {
-        var state = _store.Load(gameRoot);
-        if (state.Mods.TryGetValue(mod.Id, out var recorded) && !string.IsNullOrWhiteSpace(recorded.Version))
-            return recorded.Version;
-
-        var yaml = Path.Combine(PluginFolderPath(gameRoot, mod), "mod.yaml");
-        if (!File.Exists(yaml)) return null;
-
-        try
-        {
-            foreach (var line in File.ReadLines(yaml))
-            {
-                var trimmed = line.TrimStart();
-                if (!trimmed.StartsWith("version:", StringComparison.OrdinalIgnoreCase)) continue;
-                return trimmed[8..].Trim().Trim('"', '\'');
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Warn($"Could not read {yaml}: {ex.Message}");
-        }
-
-        return null;
-    }
+    public static bool IsModInstalled(string gameRoot, string pluginFolder) =>
+        Directory.Exists(PluginFolderPath(gameRoot, pluginFolder));
 
     // ---------------------------------------------------------------- install
 
@@ -112,7 +83,7 @@ public sealed class InstallService
     }
 
     public async Task InstallModAsync(
-        string gameRoot, ModEntry mod, IProgress<InstallProgress>? progress, CancellationToken ct)
+        string gameRoot, ModManifest manifest, IProgress<InstallProgress>? progress, CancellationToken ct)
     {
         GuardGameFolder(gameRoot);
 
@@ -120,33 +91,39 @@ public sealed class InstallService
             throw new InstallException(
                 "BepInEx is not installed yet. Install it first — mods cannot load without it.");
 
-        var asset = await _resolver.ResolveAsync(mod.Source, ct).ConfigureAwait(false)
+        var asset = await _resolver.ResolveAsync(manifest.Download, ct).ConfigureAwait(false)
                     ?? throw new InstallException(
-                        $"No download is published for {mod.Name} yet. It may not have been released.");
+                        $"No download is published for {manifest.Name} yet. Its manifest does not " +
+                        "point at a downloadable release.");
 
-        var zip = await DownloadAsync(asset, mod.Sha256, progress, ct).ConfigureAwait(false);
+        var zip = await DownloadAsync(asset, manifest.Sha256, progress, ct).ConfigureAwait(false);
         try
         {
-            progress?.Report(new InstallProgress($"Installing {mod.Name}"));
+            progress?.Report(new InstallProgress($"Installing {manifest.Name}"));
 
             // Replacing an existing copy: drop the old files first so a renamed DLL cannot linger
             // and get loaded alongside the new one.
-            if (IsModInstalled(gameRoot, mod))
-                RemoveModFiles(gameRoot, mod, keepState: true);
+            if (IsModInstalled(gameRoot, manifest.EffectivePluginFolder))
+                RemoveModFiles(gameRoot, manifest.Id, manifest.EffectivePluginFolder, manifest.Name, keepState: true);
 
-            var written = ZipSafe.Extract(zip, gameRoot, null, ct);
+            var written = ZipSafe.Extract(zip, gameRoot, null, ct).ToList();
+
+            // The zip is required to carry mod.json, but write it if the author forgot: the
+            // installed manifest is how every later run knows what version is on disk, and an
+            // install that silently lacks one would read as "unknown version" forever.
+            EnsureInstalledManifest(gameRoot, manifest, written);
 
             var state = _store.Load(gameRoot);
-            state.Mods[mod.Id] = new InstalledArtifact
+            state.Mods[manifest.Id] = new InstalledArtifact
             {
-                Id = mod.Id,
-                Version = asset.Version ?? mod.Version,
+                Id = manifest.Id,
+                Version = manifest.Version,
                 InstalledUtc = DateTime.UtcNow.ToString("o"),
-                Files = written.ToList(),
+                Files = written,
             };
             _store.Save(gameRoot, state);
 
-            Log.Info($"Installed {mod.Id} {asset.Version ?? mod.Version} ({written.Count} files).");
+            Log.Info($"Installed {manifest.Id} {manifest.Version} ({written.Count} files).");
         }
         finally
         {
@@ -154,23 +131,50 @@ public sealed class InstallService
         }
     }
 
-    public Task UninstallModAsync(string gameRoot, ModEntry mod, CancellationToken ct)
+    public Task UninstallModAsync(string gameRoot, string id, string pluginFolder, string displayName, CancellationToken ct)
     {
         GuardGameFolder(gameRoot);
 
-        RemoveModFiles(gameRoot, mod, keepState: false);
-        Log.Info($"Removed {mod.Id} from {gameRoot}.");
+        RemoveModFiles(gameRoot, id, pluginFolder, displayName, keepState: false);
+        Log.Info($"Removed {id} from {gameRoot}.");
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Guarantees the plugin folder holds the manifest that describes what was just installed.
+    /// A well-packaged zip already contains it and this is a no-op.
+    /// </summary>
+    private static void EnsureInstalledManifest(string gameRoot, ModManifest manifest, List<string> written)
+    {
+        var folder = PluginFolderPath(gameRoot, manifest.EffectivePluginFolder);
+        var path = Path.Combine(folder, ModManifest.FileName);
+        if (File.Exists(path)) return;
+
+        try
+        {
+            Directory.CreateDirectory(folder);
+            File.WriteAllText(path, System.Text.Json.JsonSerializer.Serialize(
+                manifest, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+
+            var relative = $"{PluginsRelative}/{manifest.EffectivePluginFolder}/{ModManifest.FileName}";
+            if (!written.Contains(relative)) written.Add(relative);
+
+            Log.Warn($"{manifest.Id} shipped no {ModManifest.FileName}; wrote one from the published manifest.");
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"Could not write the installed manifest for {manifest.Id}: {ex.Message}");
+        }
     }
 
     // ---------------------------------------------------------------- removal
 
-    private void RemoveModFiles(string gameRoot, ModEntry mod, bool keepState)
+    private void RemoveModFiles(string gameRoot, string id, string pluginFolder, string displayName, bool keepState)
     {
         var root = Path.GetFullPath(gameRoot);
         var state = _store.Load(gameRoot);
 
-        if (state.Mods.TryGetValue(mod.Id, out var recorded))
+        if (state.Mods.TryGetValue(id, out var recorded))
         {
             foreach (var relative in recorded.Files)
             {
@@ -182,24 +186,24 @@ public sealed class InstallService
 
         // Also remove the plugin folder itself: it accumulates files we did not write (config.cfg
         // and runtime assets), and leaving those behind means a "removed" mod keeps its settings.
-        var pluginFolder = PluginFolderPath(gameRoot, mod);
-        if (IsInside(root, pluginFolder) && Directory.Exists(pluginFolder))
+        var folder = PluginFolderPath(gameRoot, pluginFolder);
+        if (IsInside(root, folder) && Directory.Exists(folder))
         {
             try
             {
-                Directory.Delete(pluginFolder, recursive: true);
+                Directory.Delete(folder, recursive: true);
             }
             catch (Exception ex)
             {
                 throw new InstallException(
-                    $"Could not remove {mod.Name}: {ex.Message} " +
+                    $"Could not remove {displayName}: {ex.Message} " +
                     "Close the game if it is running and try again.", ex);
             }
         }
 
         if (!keepState)
         {
-            state.Mods.Remove(mod.Id);
+            state.Mods.Remove(id);
             _store.Save(gameRoot, state);
         }
     }
@@ -236,16 +240,15 @@ public sealed class InstallService
                 }
             }
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            TryDelete(target);
-            throw new InstallException(
-                $"Download failed for {asset.FileName}: {ex.Message}", ex);
-        }
         catch (OperationCanceledException)
         {
             TryDelete(target);
             throw;
+        }
+        catch (Exception ex)
+        {
+            TryDelete(target);
+            throw new InstallException($"Download failed for {asset.FileName}: {ex.Message}", ex);
         }
 
         if (!string.IsNullOrWhiteSpace(expectedSha256))
@@ -273,10 +276,10 @@ public sealed class InstallService
 
     // ---------------------------------------------------------------- helpers
 
-    private static string PluginFolderPath(string gameRoot, ModEntry mod) =>
+    private static string PluginFolderPath(string gameRoot, string pluginFolder) =>
         Path.GetFullPath(Path.Combine(gameRoot,
             PluginsRelative.Replace('/', Path.DirectorySeparatorChar),
-            mod.EffectivePluginFolder));
+            pluginFolder));
 
     private static bool IsInside(string root, string candidate)
     {

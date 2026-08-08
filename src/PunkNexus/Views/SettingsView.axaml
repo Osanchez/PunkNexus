@@ -54,6 +54,21 @@
             <TextBlock Text="{Binding Problem}" FontSize="13" />
           </Border>
 
+          <!-- The value every mod's declared gameVersion is matched against. -->
+          <StackPanel Spacing="5">
+            <TextBlock Classes="label" Text="DETECTED GAME BUILD" />
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Border Classes="pill" Background="#12321F" IsVisible="{Binding GameBuildKnown}">
+                <TextBlock Text="{Binding GameBuildDisplay}" Foreground="{DynamicResource Success}" />
+              </Border>
+              <Border Classes="pill" Background="#3A2A0F" IsVisible="{Binding !GameBuildKnown}">
+                <TextBlock Text="Unknown" Foreground="{DynamicResource Warning}" />
+              </Border>
+            </StackPanel>
+            <TextBlock Classes="dim"
+                       Text="Mods must declare exactly this game version to be installable." />
+          </StackPanel>
+
           <StackPanel Orientation="Horizontal" Spacing="10">
             <Button Classes="primary" Content="Change folder…" Command="{Binding ChangeFolderCommand}" />
             <Button Content="Re-verify" Command="{Binding VerifyCommand}" />

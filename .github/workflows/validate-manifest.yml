@@ -1,0 +1,41 @@
+name: Validate catalogue
+
+# The registry is the one file where a mistake reaches every user at once, and it is the file
+# outside contributors touch. Every pull request against it gets checked before merge.
+on:
+  pull_request:
+    paths:
+      - 'manifest/**'
+      - 'tools/validate-manifest.py'
+      - '.github/workflows/validate-manifest.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'manifest/**'
+      - 'tools/validate-manifest.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Structure first, so a malformed registry fails fast with a clear message rather than
+      # after a few minutes of network timeouts.
+      - name: Validate structure
+        run: python3 tools/validate-manifest.py --offline
+
+      # Then the real check: every manifestUrl must resolve and agree with its listing. This is
+      # what stops a mod being listed before its manifest is actually published.
+      - name: Validate published mod manifests
+        run: python3 tools/validate-manifest.py

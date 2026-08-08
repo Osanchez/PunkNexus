@@ -7,20 +7,26 @@ using PunkNexus.Services;
 
 namespace PunkNexus.ViewModels;
 
+/// <summary>
+/// One catalogue row. Holds all three tiers at once — the registry listing, the manifest the mod
+/// publishes, and the manifest found in the install — and every piece of state below is derived
+/// from comparing them.
+/// </summary>
 public sealed partial class ModRowViewModel : ViewModelBase
 {
     private readonly AppServices _services;
     private readonly GameSession _session;
     private readonly Func<string, Task> _report;
 
-    public ModEntry Entry { get; }
+    public RegistryEntry Registry { get; }
 
     /// <summary>Resolves a mod id to its row, so an install can satisfy its own dependencies.</summary>
     public Func<string, ModRowViewModel?>? LookupMod { get; set; }
 
-    [ObservableProperty] private bool _isInstalled;
-    [ObservableProperty] private string? _installedVersion;
-    [ObservableProperty] private string? _latestVersion;
+    [ObservableProperty] private ModManifest? _published;
+    [ObservableProperty] private ModManifest? _installed;
+    [ObservableProperty] private CompatibilityResult? _compatibility;
+    [ObservableProperty] private bool _isResolving = true;
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private string? _busyText;
     [ObservableProperty] private double _progress;
@@ -28,41 +34,84 @@ public sealed partial class ModRowViewModel : ViewModelBase
     [ObservableProperty] private Bitmap? _icon;
     [ObservableProperty] private string? _error;
 
-    public ModRowViewModel(ModEntry entry, AppServices services, GameSession session, Func<string, Task> report)
+    public ModRowViewModel(RegistryEntry registry, AppServices services, GameSession session, Func<string, Task> report)
     {
-        Entry = entry;
+        Registry = registry;
         _services = services;
         _session = session;
         _report = report;
-        LatestVersion = entry.Version;
     }
 
-    public string Name => Entry.Name;
-    public string Id => Entry.Id;
-    public string Author => string.IsNullOrWhiteSpace(Entry.Author) ? "Unknown" : Entry.Author!;
-    public string Category => string.IsNullOrWhiteSpace(Entry.Category) ? "Other" : Entry.Category!;
-    public string Description => Entry.Description ?? "";
-    public string? Homepage => Entry.Homepage;
-    public bool HasHomepage => !string.IsNullOrWhiteSpace(Entry.Homepage);
+    // ------------------------------------------------------------ presentation
+
+    public string Id => Registry.Id;
+    public string Name => Published?.Name is { Length: > 0 } n ? n : Registry.Name;
+    public string Author => Published?.Author ?? Registry.Author ?? "Unknown";
+    public string Category => Published?.Category ?? Registry.Category ?? "Other";
+    public string Description => Published?.Description ?? Registry.Description ?? "";
+    public string PluginFolder => Published?.EffectivePluginFolder ?? Registry.Id;
+    public IReadOnlyList<string> Tags => Published?.Tags.Count > 0 ? Published.Tags : Registry.Tags;
+
+    // ------------------------------------------------------------ state
+
+    public bool IsInstalled => Installed is not null ||
+                               (_session.HasPath && InstallService.IsModInstalled(_session.Path!, PluginFolder));
+
+    public string? InstalledVersion => Installed?.Version;
+    public string? PublishedVersion => Published?.Version;
+
+    /// <summary>The manifest could not be fetched, so nothing about this mod is trustworthy.</summary>
+    public bool IsUnavailable => !IsResolving && Published is null;
 
     public bool HasUpdate =>
         IsInstalled &&
-        !string.IsNullOrWhiteSpace(LatestVersion) &&
+        !string.IsNullOrWhiteSpace(PublishedVersion) &&
         !string.IsNullOrWhiteSpace(InstalledVersion) &&
-        !string.Equals(LatestVersion, InstalledVersion, StringComparison.OrdinalIgnoreCase);
+        !string.Equals(PublishedVersion, InstalledVersion, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Exact-match gate: a mismatch blocks the install outright.</summary>
+    public bool IsBlocked => Compatibility?.Blocks == true;
+
+    public bool CanInstall => !IsBusy && !IsBlocked && !IsUnavailable && Published is not null;
+
+    /// <summary>
+    /// The copy on disk was built for a different game version than the one now installed — the
+    /// game updated underneath it. Distinct from a catalogue mismatch, and worth its own warning
+    /// because the mod is live in the user's game right now.
+    /// </summary>
+    public bool InstalledIsStale =>
+        IsInstalled &&
+        Installed is not null &&
+        _session.Build.HasVersion &&
+        !string.IsNullOrWhiteSpace(Installed.GameVersion) &&
+        !string.Equals(Installed.GameVersion, _session.Build.Version, StringComparison.OrdinalIgnoreCase);
 
     public bool HasError => !string.IsNullOrWhiteSpace(Error);
+    public bool ShowCompatibilityBadge => Compatibility?.IsWarning == true && !IsResolving;
 
-    public string VersionLabel => IsInstalled && !string.IsNullOrWhiteSpace(InstalledVersion)
-        ? $"v{InstalledVersion}"
-        : !string.IsNullOrWhiteSpace(LatestVersion) ? $"v{LatestVersion}" : "";
+    public string CompatibilityText => Compatibility?.Summary ?? "";
+
+    public string CompatibilityBadge => Compatibility?.State switch
+    {
+        CompatibilityState.Incompatible => "wrong game version",
+        CompatibilityState.Undeclared => "no game version declared",
+        CompatibilityState.UnknownGame => "not checked",
+        _ => "",
+    };
+
+    public string VersionLabel =>
+        IsInstalled && !string.IsNullOrWhiteSpace(InstalledVersion) ? $"v{InstalledVersion}"
+        : !string.IsNullOrWhiteSpace(PublishedVersion) ? $"v{PublishedVersion}"
+        : "";
 
     public string StatusLabel =>
-        !IsInstalled ? "Not installed"
-        : HasUpdate ? $"Update available — v{LatestVersion}"
+        IsResolving ? "Checking…"
+        : IsUnavailable ? "Manifest unavailable"
+        : !IsInstalled && IsBlocked ? "Cannot install"
+        : !IsInstalled ? "Not installed"
+        : InstalledIsStale ? "Installed — game has moved on"
+        : HasUpdate ? $"Update available — v{PublishedVersion}"
         : "Installed";
-
-    public string PrimaryActionLabel => HasUpdate ? "Update" : "Install";
 
     /// <summary>Two-letter monogram, used when a mod has no icon so the row never looks broken.</summary>
     public string Monogram
@@ -95,38 +144,56 @@ public sealed partial class ModRowViewModel : ViewModelBase
         }
     }
 
-    public void RefreshInstalledState()
-    {
-        var path = _session.Path;
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            IsInstalled = false;
-            InstalledVersion = null;
-            return;
-        }
+    // ------------------------------------------------------------ refresh
 
-        IsInstalled = _services.Installer.IsModInstalled(path!, Entry);
-        InstalledVersion = IsInstalled ? _services.Installer.GetInstalledVersion(path!, Entry) : null;
-        NotifyDerived();
+    /// <summary>Fetches the published manifest and re-evaluates compatibility.</summary>
+    public async Task ResolveAsync(CancellationToken ct)
+    {
+        IsResolving = true;
+        try
+        {
+            Published = await _services.ModManifests.FetchAsync(Registry, ct).ConfigureAwait(true);
+            Compatibility = Published is null
+                ? null
+                : CompatibilityCheck.Evaluate(Published.GameVersion, _session.Build);
+        }
+        finally
+        {
+            IsResolving = false;
+            RefreshInstalledState();
+        }
     }
 
-    /// <summary>Records the version actually published, so the row reflects the real download.</summary>
-    public void ApplyResolvedVersion(string? version)
+    /// <summary>Re-reads what is actually on disk. Disk is the source of truth, not our records.</summary>
+    public void RefreshInstalledState()
     {
-        if (!string.IsNullOrWhiteSpace(version)) LatestVersion = version;
+        Installed = _session.HasPath
+            ? ModManifestService.ReadInstalled(_session.Path!, PluginFolder)
+            : null;
+
         NotifyDerived();
     }
 
     public async Task LoadIconAsync(CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(Entry.IconUrl)) return;
-        Icon = await _services.Icons.GetAsync(Entry.IconUrl, ct).ConfigureAwait(true);
+        var url = Published?.IconUrl ?? Registry.IconUrl;
+        if (string.IsNullOrWhiteSpace(url)) return;
+        Icon = await _services.Icons.GetAsync(url, ct).ConfigureAwait(true);
     }
+
+    // ------------------------------------------------------------ commands
 
     [RelayCommand]
     private async Task InstallAsync()
     {
-        if (string.IsNullOrWhiteSpace(_session.Path)) return;
+        if (string.IsNullOrWhiteSpace(_session.Path) || Published is null) return;
+
+        if (IsBlocked)
+        {
+            // The button is disabled in this state; this is the belt to that suspenders.
+            Error = Compatibility?.Summary;
+            return;
+        }
 
         Error = null;
         IsBusy = true;
@@ -152,14 +219,19 @@ public sealed partial class ModRowViewModel : ViewModelBase
             // Pull in anything this mod needs first. Installing a mod that silently does nothing
             // because its framework is missing is the single most common "it's broken" report.
             var pulled = new List<string>();
-            foreach (var dependencyId in Entry.Dependencies)
+            foreach (var dependencyId in Published.Dependencies)
             {
                 var dependency = LookupMod?.Invoke(dependencyId);
                 if (dependency is null || dependency.IsInstalled) continue;
 
+                if (dependency.Published is null || dependency.IsBlocked)
+                    throw new InstallException(
+                        $"{Name} needs {dependency.Name}, which cannot be installed on your game " +
+                        $"version. {dependency.Compatibility?.Summary}".TrimEnd());
+
                 BusyText = $"Installing {dependency.Name} (required by {Name})…";
                 await _services.Installer
-                    .InstallModAsync(_session.Path!, dependency.Entry, progress, CancellationToken.None)
+                    .InstallModAsync(_session.Path!, dependency.Published, progress, CancellationToken.None)
                     .ConfigureAwait(true);
 
                 dependency.RefreshInstalledState();
@@ -167,7 +239,7 @@ public sealed partial class ModRowViewModel : ViewModelBase
             }
 
             await _services.Installer
-                .InstallModAsync(_session.Path!, Entry, progress, CancellationToken.None)
+                .InstallModAsync(_session.Path!, Published, progress, CancellationToken.None)
                 .ConfigureAwait(true);
 
             RefreshInstalledState();
@@ -203,7 +275,7 @@ public sealed partial class ModRowViewModel : ViewModelBase
         try
         {
             await _services.Installer
-                .UninstallModAsync(_session.Path!, Entry, CancellationToken.None)
+                .UninstallModAsync(_session.Path!, Id, PluginFolder, Name, CancellationToken.None)
                 .ConfigureAwait(true);
 
             RefreshInstalledState();
@@ -227,14 +299,29 @@ public sealed partial class ModRowViewModel : ViewModelBase
 
     private void NotifyDerived()
     {
+        OnPropertyChanged(nameof(Name));
+        OnPropertyChanged(nameof(Author));
+        OnPropertyChanged(nameof(Category));
+        OnPropertyChanged(nameof(Description));
+        OnPropertyChanged(nameof(IsInstalled));
+        OnPropertyChanged(nameof(InstalledVersion));
+        OnPropertyChanged(nameof(PublishedVersion));
+        OnPropertyChanged(nameof(IsUnavailable));
         OnPropertyChanged(nameof(HasUpdate));
-        OnPropertyChanged(nameof(StatusLabel));
+        OnPropertyChanged(nameof(IsBlocked));
+        OnPropertyChanged(nameof(CanInstall));
+        OnPropertyChanged(nameof(InstalledIsStale));
+        OnPropertyChanged(nameof(ShowCompatibilityBadge));
+        OnPropertyChanged(nameof(CompatibilityText));
+        OnPropertyChanged(nameof(CompatibilityBadge));
         OnPropertyChanged(nameof(VersionLabel));
-        OnPropertyChanged(nameof(PrimaryActionLabel));
+        OnPropertyChanged(nameof(StatusLabel));
     }
 
-    partial void OnIsInstalledChanged(bool value) => NotifyDerived();
-    partial void OnInstalledVersionChanged(string? value) => NotifyDerived();
-    partial void OnLatestVersionChanged(string? value) => NotifyDerived();
+    partial void OnPublishedChanged(ModManifest? value) => NotifyDerived();
+    partial void OnInstalledChanged(ModManifest? value) => NotifyDerived();
+    partial void OnCompatibilityChanged(CompatibilityResult? value) => NotifyDerived();
+    partial void OnIsResolvingChanged(bool value) => NotifyDerived();
+    partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(CanInstall));
     partial void OnErrorChanged(string? value) => OnPropertyChanged(nameof(HasError));
 }

@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "updatedUtc": "2026-08-08T00:00:00Z",
+  "targetGameVersion": "0.12.10",
   "loader": {
     "name": "BepInEx",
     "version": "5.4.23.3",
@@ -11,352 +12,236 @@
   "mods": [
     {
       "id": "PunkModsMenu",
+      "manifestUrl": "https://raw.githubusercontent.com/Osanchez/PunkMods/main/PunkModsMenu/mod.json",
       "name": "Mods Menu",
       "author": "Trihardest",
-      "version": "2.1.0",
       "category": "Framework",
-      "description": "Framework that adds a MODS tab to Settings; other mods register toggles, lists, and buttons into it. On its own it shows nothing \u2014 the tab only appears once another mod registers a row.",
-      "pluginFolder": "PunkModsMenu",
-      "source": {
-        "repo": "Osanchez/PunkMods",
-        "assetPattern": "PunkModsMenu-v*.zip"
-      },
-      "sha256": null,
+      "description": "Framework that adds a MODS tab to Settings; other mods register toggles, lists, and buttons into it. On its own it shows nothing — the tab only appears once another mod registers a row.",
       "iconUrl": null,
       "homepage": "https://github.com/Osanchez/PunkMods",
-      "gameVersion": "0.12.10",
       "tags": [
         "framework",
         "ui"
       ],
-      "dependencies": []
+      "enabled": true
     },
     {
       "id": "PunkFourPlayer",
+      "manifestUrl": "https://raw.githubusercontent.com/Osanchez/PunkMods/main/PunkFourPlayer/mod.json",
       "name": "Four Player",
       "author": "Trihardest",
-      "version": "0.2.1",
       "category": "Co-op",
-      "description": "Local and Remote Play co-op for up to 4 players \u2014 dynamic join screen, extra ships and HUDs, and the ready-up profile picker.",
-      "pluginFolder": "PunkFourPlayer",
-      "source": {
-        "repo": "Osanchez/PunkMods",
-        "assetPattern": "PunkFourPlayer-v*.zip"
-      },
-      "sha256": null,
+      "description": "Local and Remote Play co-op for up to 4 players — dynamic join screen, extra ships and HUDs, and the ready-up profile picker.",
       "iconUrl": null,
       "homepage": "https://github.com/Osanchez/PunkMods",
-      "gameVersion": "0.12.10",
       "tags": [
         "co-op",
         "multiplayer"
       ],
-      "dependencies": []
+      "enabled": true
     },
     {
       "id": "PunkMultiverse",
+      "manifestUrl": "https://raw.githubusercontent.com/Osanchez/PunkMultiverse/main/mod.json",
       "name": "Punk Multiverse",
       "author": "Trihardest",
-      "version": "0.1.244",
       "category": "Multiplayer",
-      "description": "Online co-op and battle royale for PUNK \u2014 entity replication, dedicated servers, lobby and direct connect, ring schedule and contested loot.",
-      "pluginFolder": "PunkMultiverse",
-      "source": {
-        "repo": "Osanchez/PunkMultiverse",
-        "assetPattern": "PunkMultiverse-v*.zip"
-      },
-      "sha256": null,
+      "description": "Online co-op and battle royale for PUNK — entity replication, dedicated servers, lobby and direct connect, ring schedule and contested loot.",
       "iconUrl": null,
       "homepage": "https://github.com/Osanchez/PunkMultiverse",
-      "gameVersion": "0.12.10",
       "tags": [
         "online",
         "multiplayer",
         "battle-royale"
       ],
-      "dependencies": []
+      "enabled": true
     },
     {
       "id": "PunkCombatTweaksExtended",
+      "manifestUrl": "https://raw.githubusercontent.com/Osanchez/PunkMods/main/PunkCombatTweaksExtended/mod.json",
       "name": "Combat Tweaks Extended",
       "author": "Trihardest",
-      "version": "1.1.0",
       "category": "Combat",
-      "description": "Combat feel tweaks with in-game toggles \u2014 suppress the slow-motion on player damage and remove all camera screen shake.",
-      "pluginFolder": "PunkCombatTweaksExtended",
-      "source": {
-        "repo": "Osanchez/PunkMods",
-        "assetPattern": "PunkCombatTweaksExtended-v*.zip"
-      },
-      "sha256": null,
+      "description": "Combat feel tweaks with in-game toggles — suppress the slow-motion on player damage and remove all camera screen shake.",
       "iconUrl": null,
       "homepage": "https://github.com/Osanchez/PunkMods",
-      "gameVersion": "0.12.10",
       "tags": [
         "combat",
         "feel"
       ],
-      "dependencies": [
-        "PunkModsMenu"
-      ]
+      "enabled": true
     },
     {
       "id": "PunkDronesEnhanced",
+      "manifestUrl": "https://raw.githubusercontent.com/Osanchez/PunkMods/main/PunkDronesEnhanced/mod.json",
       "name": "Drones Enhanced",
       "author": "Trihardest",
-      "version": "1.0.0",
       "category": "Combat",
       "description": "Smarter, commandable drones. HOLD POSITION parks a drone where you stand, DEFEND OWNER makes drones attack anything hostile to you, and TARGET NEAREST locks the closest visible enemy. All three on by default.",
-      "pluginFolder": "PunkDronesEnhanced",
-      "source": {
-        "repo": "Osanchez/PunkMods",
-        "assetPattern": "PunkDronesEnhanced-v*.zip"
-      },
-      "sha256": null,
       "iconUrl": null,
       "homepage": "https://github.com/Osanchez/PunkMods",
-      "gameVersion": "0.12.10",
       "tags": [
         "combat",
         "drones"
       ],
-      "dependencies": [
-        "PunkModsMenu"
-      ]
+      "enabled": true
     },
     {
       "id": "PunkDashIFrames",
+      "manifestUrl": "https://raw.githubusercontent.com/Osanchez/PunkMods/main/PunkDashIFrames/mod.json",
       "name": "Dash I-Frames",
       "author": "Trihardest",
-      "version": "1.0.0",
       "category": "Combat",
       "description": "Grants a short window of invincibility while dashing, so you can dash through lasers and bullets.",
-      "pluginFolder": "PunkDashIFrames",
-      "source": {
-        "repo": "Osanchez/PunkMods",
-        "assetPattern": "PunkDashIFrames-v*.zip"
-      },
-      "sha256": null,
       "iconUrl": null,
       "homepage": "https://github.com/Osanchez/PunkMods",
-      "gameVersion": "0.12.10",
       "tags": [
         "combat"
       ],
-      "dependencies": []
+      "enabled": true
     },
     {
       "id": "PunkReviveItem",
+      "manifestUrl": "https://raw.githubusercontent.com/Osanchez/PunkMods/main/PunkReviveItem/mod.json",
       "name": "Revive Item",
       "author": "Trihardest",
-      "version": "1.0.0",
       "category": "Co-op",
       "description": "Adds the Revive Beacon, a 2500-coin shop consumable that revives a random downed player at the user's position.",
-      "pluginFolder": "PunkReviveItem",
-      "source": {
-        "repo": "Osanchez/PunkMods",
-        "assetPattern": "PunkReviveItem-v*.zip"
-      },
-      "sha256": null,
       "iconUrl": null,
       "homepage": "https://github.com/Osanchez/PunkMods",
-      "gameVersion": "0.12.10",
       "tags": [
         "co-op",
         "items"
       ],
-      "dependencies": []
+      "enabled": true
     },
     {
       "id": "PunkScoreboard",
+      "manifestUrl": "https://raw.githubusercontent.com/Osanchez/PunkMods/main/PunkScoreboard/mod.json",
       "name": "Scoreboard",
       "author": "Trihardest",
-      "version": "1.1.0",
       "category": "Co-op",
-      "description": "Hold Tab for a co-op scoreboard \u2014 per-player kills, bosses, deaths, damage dealt, time alive, HP, and fuel.",
-      "pluginFolder": "PunkScoreboard",
-      "source": {
-        "repo": "Osanchez/PunkMods",
-        "assetPattern": "PunkScoreboard-v*.zip"
-      },
-      "sha256": null,
+      "description": "Hold Tab for a co-op scoreboard — per-player kills, bosses, deaths, damage dealt, time alive, HP, and fuel.",
       "iconUrl": null,
       "homepage": "https://github.com/Osanchez/PunkMods",
-      "gameVersion": "0.12.10",
       "tags": [
         "co-op",
         "hud"
       ],
-      "dependencies": []
+      "enabled": true
     },
     {
       "id": "PunkPlayerHighlight",
+      "manifestUrl": "https://raw.githubusercontent.com/Osanchez/PunkMods/main/PunkPlayerHighlight/mod.json",
       "name": "Player Highlight",
       "author": "Trihardest",
-      "version": "2.0.0",
       "category": "Quality of Life",
-      "description": "Draws a neon ring and a P1\u2013P4 label around each player's ship so you can spot yourself quickly.",
-      "pluginFolder": "PunkPlayerHighlight",
-      "source": {
-        "repo": "Osanchez/PunkMods",
-        "assetPattern": "PunkPlayerHighlight-v*.zip"
-      },
-      "sha256": null,
+      "description": "Draws a neon ring and a P1–P4 label around each player's ship so you can spot yourself quickly.",
       "iconUrl": null,
       "homepage": "https://github.com/Osanchez/PunkMods",
-      "gameVersion": "0.12.10",
       "tags": [
         "hud",
         "co-op"
       ],
-      "dependencies": []
+      "enabled": true
     },
     {
       "id": "PunkMetaLoadout",
+      "manifestUrl": "https://raw.githubusercontent.com/Osanchez/PunkMods/main/PunkMetaLoadout/mod.json",
       "name": "Meta Loadout",
       "author": "Trihardest",
-      "version": "2.0.0",
       "category": "Quality of Life",
       "description": "Persists each player's ship build per class and profile across runs; profiles are chosen on the player-select screen.",
-      "pluginFolder": "PunkMetaLoadout",
-      "source": {
-        "repo": "Osanchez/PunkMods",
-        "assetPattern": "PunkMetaLoadout-v*.zip"
-      },
-      "sha256": null,
       "iconUrl": null,
       "homepage": "https://github.com/Osanchez/PunkMods",
-      "gameVersion": "0.12.10",
       "tags": [
         "progression"
       ],
-      "dependencies": []
+      "enabled": true
     },
     {
       "id": "PunkSeedPicker",
+      "manifestUrl": "https://raw.githubusercontent.com/Osanchez/PunkMods/main/PunkSeedPicker/mod.json",
       "name": "Seed Picker",
       "author": "Trihardest",
-      "version": "1.0.0",
       "category": "Quality of Life",
       "description": "Adds a world-seed entry screen after class selection so you can type or randomize the run's seed.",
-      "pluginFolder": "PunkSeedPicker",
-      "source": {
-        "repo": "Osanchez/PunkMods",
-        "assetPattern": "PunkSeedPicker-v*.zip"
-      },
-      "sha256": null,
       "iconUrl": null,
       "homepage": "https://github.com/Osanchez/PunkMods",
-      "gameVersion": "0.12.10",
       "tags": [
         "world"
       ],
-      "dependencies": []
+      "enabled": true
     },
     {
       "id": "SellVaultItems",
+      "manifestUrl": "https://raw.githubusercontent.com/Osanchez/PunkMods/main/SellVaultItems/mod.json",
       "name": "Sell Vault Items",
       "author": "Trihardest",
-      "version": "1.0.0",
       "category": "Quality of Life",
       "description": "Hover a spare module in the Vault and press the north face button (Y / Triangle) to sell it back for its base shop buy price, credited to your run currency.",
-      "pluginFolder": "SellVaultItems",
-      "source": {
-        "repo": "Osanchez/PunkMods",
-        "assetPattern": "SellVaultItems-v*.zip"
-      },
-      "sha256": null,
       "iconUrl": null,
       "homepage": "https://github.com/Osanchez/PunkMods",
-      "gameVersion": "0.12.10",
       "tags": [
         "economy"
       ],
-      "dependencies": []
+      "enabled": true
     },
     {
       "id": "PunkInputTweaks",
+      "manifestUrl": "https://raw.githubusercontent.com/Osanchez/PunkMods/main/PunkInputTweaks/mod.json",
       "name": "Input Tweaks",
       "author": "Trihardest",
-      "version": "1.0.0",
       "category": "Quality of Life",
       "description": "Raises the Input System polling rate to cut gamepad input latency (helps controller and Remote Play players).",
-      "pluginFolder": "PunkInputTweaks",
-      "source": {
-        "repo": "Osanchez/PunkMods",
-        "assetPattern": "PunkInputTweaks-v*.zip"
-      },
-      "sha256": null,
       "iconUrl": null,
       "homepage": "https://github.com/Osanchez/PunkMods",
-      "gameVersion": "0.12.10",
       "tags": [
         "input"
       ],
-      "dependencies": []
+      "enabled": true
     },
     {
       "id": "PunkUiFixes",
+      "manifestUrl": "https://raw.githubusercontent.com/Osanchez/PunkMods/main/PunkUiFixes/mod.json",
       "name": "UI Fixes",
       "author": "Trihardest",
-      "version": "1.0.0",
       "category": "Quality of Life",
       "description": "Fixes vanilla UI alignment, e.g. the co-op ASSIGN INPUT header drifting on ultrawide aspect ratios.",
-      "pluginFolder": "PunkUiFixes",
-      "source": {
-        "repo": "Osanchez/PunkMods",
-        "assetPattern": "PunkUiFixes-v*.zip"
-      },
-      "sha256": null,
       "iconUrl": null,
       "homepage": "https://github.com/Osanchez/PunkMods",
-      "gameVersion": "0.12.10",
       "tags": [
         "ui"
       ],
-      "dependencies": []
+      "enabled": true
     },
     {
       "id": "PunkDebugKey",
+      "manifestUrl": "https://raw.githubusercontent.com/Osanchez/PunkMods/main/PunkDebugKey/mod.json",
       "name": "Debug Menu Key",
       "author": "Trihardest",
-      "version": "2.1.0",
       "category": "Developer",
       "description": "Opens the game's built-in developer debug menu with F1.",
-      "pluginFolder": "PunkDebugKey",
-      "source": {
-        "repo": "Osanchez/PunkMods",
-        "assetPattern": "PunkDebugKey-v*.zip"
-      },
-      "sha256": null,
       "iconUrl": null,
       "homepage": "https://github.com/Osanchez/PunkMods",
-      "gameVersion": "0.12.10",
       "tags": [
         "developer"
       ],
-      "dependencies": []
+      "enabled": true
     },
     {
       "id": "PunkSimController",
+      "manifestUrl": "https://raw.githubusercontent.com/Osanchez/PunkMods/main/PunkSimController/mod.json",
       "name": "Sim Controller",
       "author": "Trihardest",
-      "version": "1.0.0",
       "category": "Developer",
       "description": "Debug tool that spawns simulated controllers to test the co-op join and start flow without extra hardware.",
-      "pluginFolder": "PunkSimController",
-      "source": {
-        "repo": "Osanchez/PunkMods",
-        "assetPattern": "PunkSimController-v*.zip"
-      },
-      "sha256": null,
       "iconUrl": null,
       "homepage": "https://github.com/Osanchez/PunkMods",
-      "gameVersion": "0.12.10",
       "tags": [
         "developer"
       ],
-      "dependencies": []
+      "enabled": true
     }
   ]
 }

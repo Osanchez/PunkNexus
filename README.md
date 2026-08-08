@@ -37,29 +37,62 @@ writing into a folder that is no longer there.
 
 ## The catalogue
 
-Both lists are plain JSON in this repo, read at runtime over `raw.githubusercontent.com`:
+Three tiers, and the split is the whole design. Full contract in
+[`docs/MOD_AUTHORING.md`](docs/MOD_AUTHORING.md).
 
-| File | Contents |
-|---|---|
-| [`manifest/mods.json`](manifest/mods.json) | The mod catalogue and the BepInEx loader entry |
-| [`manifest/servers.json`](manifest/servers.json) | The server list (empty for now) |
-
-**Adding or updating a mod needs no new build of the client** — edit the manifest, push, done. The
-client picks it up on its next refresh.
-
-Mod downloads are resolved by pattern rather than by fixed URL:
-
-```json
-"source": { "repo": "Osanchez/PunkMods", "assetPattern": "PunkScoreboard-v*.zip" }
+```
+  developer's repo              this repo                      user's game
+  ────────────────              ─────────                      ───────────
+  mod.json  ◄──── manifestUrl ── manifest/mods.json
+     │                                                     BepInEx/plugins/<Mod>/
+     └──────────── packaged into the release zip ─────────────► mod.json
 ```
 
-Release assets are named `<Mod>-v<version>.zip`, so a fixed URL would 404 the moment a mod is
-rebuilt. Matching the glob against the latest release's assets keeps the manifest correct across
-version bumps, and the matched filename is where the client gets the true current version — the
-`version` field in the manifest is only a fallback for display before that lookup lands.
+1. **The registry** — [`manifest/mods.json`](manifest/mods.json). A list of pointers: id,
+   `manifestUrl`, and presentation. Developers open **one** pull request here, ever.
+2. **The mod manifest** — `mod.json` in the developer's own repo, at that `manifestUrl`. Owns the
+   `version`, the `gameVersion` it was built for, and the download.
+3. **The installed manifest** — the same `mod.json`, shipped inside the zip, landing in the plugin
+   folder. Read back to know exactly what is installed.
 
-If the manifest cannot be fetched, the client falls back to the last copy it cached, and then to a
-copy compiled into the executable, so it always opens to a usable window.
+**The registry deliberately carries no version number.** If it did, every release would need a pull
+request here, and the day someone forgot, the client would confidently show the wrong version. One
+document, authored once by the developer, serves as the published truth and the installed record.
+
+Downloads resolve by pattern rather than fixed URL, since release assets embed their version in the
+filename and a pinned URL 404s on the next bump:
+
+```json
+"download": { "repo": "Osanchez/PunkMods", "assetPattern": "PunkScoreboard-v*.zip" }
+```
+
+If the registry cannot be fetched the client falls back to its disk cache, then to a copy compiled
+into the executable, so it always opens to a usable window.
+
+Every pull request touching `manifest/` is validated by CI — ids unique, `manifestUrl` reachable,
+the fetched manifest agreeing with its listing, dependencies resolvable. Run it locally with
+`python3 tools/validate-manifest.py`.
+
+## Game-version compatibility
+
+The client reads the game's version out of `Punk_Data/globalgamemanagers` in the user's own install
+— never from the catalogue — and matches it **exactly** against each mod's declared `gameVersion`.
+
+| Situation | Result |
+|---|---|
+| Exact match | Installs normally |
+| Different version | Blocked, with the reason shown on the row |
+| Mod declares no `gameVersion` | Blocked — a packaging error, treated as one |
+| Version could not be read | Nothing blocked; an amber note says it was not checked |
+
+The asymmetry in the last two rows is deliberate. A mod that declares nothing is the author's
+failure and is blocked. The client failing to fingerprint an install is *our* failure, and is not
+evidence against the mod, so it gates nothing.
+
+A game update therefore makes mods uninstallable until their authors publish a build for it — the
+cost of never installing a mod into a game it was not built against. Already-installed mods stay
+put and get an amber *outdated* badge instead, and are never filtered out of the list, so they can
+still be removed.
 
 ## Build
 
@@ -89,7 +122,8 @@ first navigation.
 | `src/PunkNexus/Views/` | Avalonia XAML |
 | `src/PunkNexus/Themes/` | The PUNK theme — colours and control styles |
 | `manifest/` | The published mod and server catalogues |
-| `docs/` | Design notes |
+| `tools/` | `validate-manifest.py`, the catalogue checker CI runs |
+| `docs/` | [Mod authoring contract](docs/MOD_AUTHORING.md), [server list design](docs/SERVER_LIST.md) |
 
 ## Where it keeps things
 

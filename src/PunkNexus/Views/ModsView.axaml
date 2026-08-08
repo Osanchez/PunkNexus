@@ -22,11 +22,18 @@
               </TextBlock.Text>
             </TextBlock>
           </StackPanel>
-          <Button Grid.Column="1" Classes="ghost" Content="Refresh" VerticalAlignment="Center"
-                  Command="{Binding RefreshCommand}" IsEnabled="{Binding !IsLoading}" />
+
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+            <!-- What every mod's declared gameVersion is matched against. -->
+            <Border Classes="pill" VerticalAlignment="Center">
+              <TextBlock Text="{Binding GameVersionLabel}" />
+            </Border>
+            <Button Classes="ghost" Content="Refresh"
+                    Command="{Binding RefreshCommand}" IsEnabled="{Binding !IsLoading}" />
+          </StackPanel>
         </Grid>
 
-        <Grid ColumnDefinitions="*,180,Auto" ColumnSpacing="12">
+        <Grid ColumnDefinitions="*,180,Auto,Auto" ColumnSpacing="12">
           <TextBox Grid.Column="0" Text="{Binding Search, Mode=TwoWay}"
                    Watermark="Search mods, authors, tags…" />
           <ComboBox Grid.Column="1" ItemsSource="{Binding Categories}"
@@ -34,6 +41,8 @@
                     HorizontalAlignment="Stretch" />
           <CheckBox Grid.Column="2" Content="Installed only" VerticalAlignment="Center"
                     IsChecked="{Binding InstalledOnly, Mode=TwoWay}" />
+          <CheckBox Grid.Column="3" Content="Compatible only" VerticalAlignment="Center"
+                    IsChecked="{Binding CompatibleOnly, Mode=TwoWay}" />
         </Grid>
 
       </StackPanel>
@@ -62,6 +71,24 @@
               BorderThickness="1" CornerRadius="6" Padding="14,11"
               IsVisible="{Binding LoaderError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
         <TextBlock Text="{Binding LoaderError}" FontSize="13" Foreground="{DynamicResource Danger}" />
+      </Border>
+
+      <!-- Exact-match gating means a game update can shut the catalogue down; say so plainly
+           rather than leaving a screen of greyed-out buttons unexplained. -->
+      <Border Classes="row" Padding="14,11" IsVisible="{Binding HasBlocked}">
+        <TextBlock FontSize="13" Foreground="{DynamicResource Warning}">
+          <TextBlock.Text>
+            <MultiBinding StringFormat="{}{0} mod(s) were built for a different game version and cannot be installed until their authors publish a build for {1}.">
+              <Binding Path="BlockedCount" />
+              <Binding Path="GameVersionLabel" />
+            </MultiBinding>
+          </TextBlock.Text>
+        </TextBlock>
+      </Border>
+
+      <Border Classes="row" Padding="14,11" IsVisible="{Binding GameVersionUnknown}">
+        <TextBlock FontSize="13" Foreground="{DynamicResource Warning}"
+                   Text="Your game's version could not be read, so compatibility was not checked. Mods are listed without gating." />
       </Border>
 
       <Border Classes="row" Padding="14,11"
@@ -129,6 +156,22 @@
                                 IsVisible="{Binding HasUpdate}">
                           <TextBlock Text="update" Foreground="{DynamicResource Accent}" />
                         </Border>
+
+                        <!-- the compatibility verdict, right next to the name -->
+                        <Border Classes="pill" VerticalAlignment="Center"
+                                Background="{DynamicResource DangerDim}"
+                                IsVisible="{Binding ShowCompatibilityBadge}"
+                                ToolTip.Tip="{Binding CompatibilityText}">
+                          <TextBlock Text="{Binding CompatibilityBadge}"
+                                     Foreground="{DynamicResource Danger}" />
+                        </Border>
+
+                        <Border Classes="pill" VerticalAlignment="Center"
+                                Background="#3A2A0F"
+                                IsVisible="{Binding InstalledIsStale}"
+                                ToolTip.Tip="The game updated after this was installed. It may no longer work until its author publishes a new build.">
+                          <TextBlock Text="outdated" Foreground="{DynamicResource Warning}" />
+                        </Border>
                       </StackPanel>
 
                       <TextBlock FontSize="12" Classes="dim">
@@ -142,18 +185,22 @@
 
                       <TextBlock Text="{Binding Description}" Classes="muted" FontSize="12.5"
                                  MaxLines="3" TextTrimming="CharacterEllipsis" />
+
+                      <TextBlock Text="{Binding CompatibilityText}" FontSize="12"
+                                 Foreground="{DynamicResource Danger}"
+                                 IsVisible="{Binding IsBlocked}" />
                     </StackPanel>
 
                     <StackPanel Grid.Column="2" Spacing="8" VerticalAlignment="Top" MinWidth="128">
                       <Button Classes="primary" Content="Install"
                               HorizontalAlignment="Stretch"
                               Command="{Binding InstallCommand}"
-                              IsEnabled="{Binding !IsBusy}"
+                              IsEnabled="{Binding CanInstall}"
                               IsVisible="{Binding !IsInstalled}" />
                       <Button Classes="primary" Content="Update"
                               HorizontalAlignment="Stretch"
                               Command="{Binding InstallCommand}"
-                              IsEnabled="{Binding !IsBusy}"
+                              IsEnabled="{Binding CanInstall}"
                               IsVisible="{Binding HasUpdate}" />
                       <Button Classes="danger" Content="Remove"
                               HorizontalAlignment="Stretch"
@@ -161,7 +208,7 @@
                               IsEnabled="{Binding !IsBusy}"
                               IsVisible="{Binding IsInstalled}" />
                       <TextBlock Text="{Binding StatusLabel}" Classes="dim" FontSize="11"
-                                 HorizontalAlignment="Center" />
+                                 HorizontalAlignment="Center" TextAlignment="Center" />
                     </StackPanel>
                   </Grid>
 

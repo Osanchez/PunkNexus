@@ -43,6 +43,10 @@ public sealed partial class SettingsViewModel : ViewModelBase
 
     public string AppVersion => AppServices.Version;
     public string DataFolder => AppPaths.Root;
+
+    /// <summary>The detected game build — what every mod's declared gameVersion is matched against.</summary>
+    public string GameBuildDisplay => _session.Build.Display;
+    public bool GameBuildKnown => _session.Build.HasVersion;
     public bool IsManifestUrlCustom =>
         !string.Equals(ManifestBaseUrl?.Trim(), AppSettings.DefaultManifestBaseUrl, StringComparison.OrdinalIgnoreCase);
 
@@ -66,6 +70,9 @@ public sealed partial class SettingsViewModel : ViewModelBase
 
         LoaderInstalled = result.IsValid && _services.Installer.IsLoaderInstalled(GamePath!);
         LoaderVersion = _services.State.Load(GamePath!).Loader?.Version;
+
+        OnPropertyChanged(nameof(GameBuildDisplay));
+        OnPropertyChanged(nameof(GameBuildKnown));
     }
 
     [RelayCommand]
@@ -136,7 +143,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
         try
         {
             var manifest = await _services.Manifests
-                .LoadModsAsync(forceRefresh: false, CancellationToken.None)
+                .LoadRegistryAsync(forceRefresh: false, CancellationToken.None)
                 .ConfigureAwait(true);
 
             if (manifest.Value.Loader is null)

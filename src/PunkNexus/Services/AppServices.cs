@@ -9,6 +9,7 @@ public sealed class AppServices
     public HttpClient Http { get; }
     public SettingsService Settings { get; }
     public ManifestService Manifests { get; }
+    public ModManifestService ModManifests { get; }
     public ReleaseResolver Resolver { get; }
     public InstallStateStore State { get; }
     public InstallService Installer { get; }
@@ -34,6 +35,7 @@ public sealed class AppServices
         Settings.Load();
 
         Manifests = new ManifestService(Http, Settings);
+        ModManifests = new ModManifestService(Http);
         Resolver = new ReleaseResolver(Http);
         State = new InstallStateStore();
         Installer = new InstallService(Http, Resolver, State);

@@ -68,6 +68,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         Session.Path = path;
         Session.LoaderInstalled = _services.Installer.IsLoaderInstalled(path);
 
+        // Read the game's version before anything is listed — every compatibility decision below
+        // depends on it, and a wrong answer here silently mis-gates the whole catalogue.
+        Session.Build = await Task.Run(() => GameVersionDetector.Detect(path)).ConfigureAwait(true);
+
         IsSetupVisible = false;
         IsModsTab = true;
 

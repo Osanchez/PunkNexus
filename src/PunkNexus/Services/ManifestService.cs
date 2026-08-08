@@ -30,8 +30,8 @@ public sealed class ManifestService
         _settings = settings;
     }
 
-    public Task<ManifestResult<ModsManifest>> LoadModsAsync(bool forceRefresh, CancellationToken ct) =>
-        LoadAsync<ModsManifest>("mods.json", "PunkNexus.Fallback.mods.json", forceRefresh, ct);
+    public Task<ManifestResult<ModsRegistry>> LoadRegistryAsync(bool forceRefresh, CancellationToken ct) =>
+        LoadAsync<ModsRegistry>("mods.json", "PunkNexus.Fallback.mods.json", forceRefresh, ct);
 
     public Task<ManifestResult<ServersManifest>> LoadServersAsync(bool forceRefresh, CancellationToken ct) =>
         LoadAsync<ServersManifest>("servers.json", "PunkNexus.Fallback.servers.json", forceRefresh, ct);

@@ -44,6 +44,11 @@ notices within seconds and drops back to setup instead of failing halfway throug
 BepInEx is the loader everything else runs on; the Mods tab installs it in one click if it's
 missing. After that every mod is one button.
 
+Its download is **pinned to one release asset, with a checksum**, and updated by hand. That is
+deliberate: BepInEx is tied to the game's engine version and is what every mod here is compiled
+against, so following upstream automatically would be a downgrade in safety rather than an upgrade.
+It is not expected to change often, if at all.
+
 Downloads are checked **before** anything is written:
 
 - **sha256**, when the mod publishes one. A mismatch blocks the install outright.

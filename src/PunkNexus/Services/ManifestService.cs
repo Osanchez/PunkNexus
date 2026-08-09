@@ -59,9 +59,24 @@ public sealed class ManifestService
     {
         get
         {
-            var manifest = ManifestBase;
-            var cut = manifest.LastIndexOf('/');
-            return cut > 0 ? $"{manifest[..cut]}/reports" : $"{manifest}/../reports";
+            var manifest = ManifestBase.TrimEnd('/');
+
+            // Replace the last PATH segment, never part of the scheme or host. Cutting at the last
+            // '/' in the raw string did exactly that whenever the base had no path of its own:
+            // "http://127.0.0.1:8931" cut at the slash inside "//" and became "http://reports",
+            // where "reports" is the HOSTNAME. The lookup then failed with "No such host" and fell
+            // back to the embedded copy, so a self-hosted catalog reported zero scans rather than
+            // an error anyone could act on.
+            if (!Uri.TryCreate(manifest, UriKind.Absolute, out var uri))
+                return $"{manifest}/../reports";
+
+            var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            var path = segments.Length > 0
+                ? string.Join('/', segments[..^1].Append("reports"))
+                : "reports";
+
+            return new UriBuilder(uri) { Path = path, Query = "", Fragment = "" }
+                .Uri.ToString().TrimEnd('/');
         }
     }
 

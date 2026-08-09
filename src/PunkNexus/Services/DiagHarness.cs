@@ -35,6 +35,7 @@ namespace PunkNexus.Services;
 ///   tab &lt;name&gt;             select a tab by header
 ///   screenshot &lt;name&gt;      render THIS WINDOW to shots\&lt;name&gt;.png
 ///   dialog                 whether a modal is open, its title and its buttons
+///   invoke &lt;text&gt; &lt;Cmd&gt;    run a bound command on the row containing &lt;text&gt;
 ///   waitfor &lt;text&gt; [secs]  wait until a control is clickable, instead of sleeping and hoping
 ///   state                  settings + install state + shelf, as the app sees them
 ///   quit                   close the app
@@ -128,6 +129,7 @@ public sealed class DiagHarness
         {
             case "uidump": Out(Dump()); return;
             case "dialog": Out(DialogState()); return;
+            case "invoke": Out(Invoke(rest)); return;
             case "waitfor": Out(BeginWait(rest)); return;
             case "click":
             {
@@ -235,6 +237,43 @@ public sealed class DiagHarness
             .Where(b => b.IsEffectivelyVisible && b.IsEnabled)
             .Select(IdOf);
         return $"dialog: OPEN \"{title}\" buttons=[{string.Join(", ", buttons)}]";
+    }
+
+    /// <summary>
+    /// Run a named command on whatever row shows the given text.
+    ///
+    /// Not everything a person can click is a Button. The scan report opens by clicking the mod
+    /// ROW -- a plain container with a bound gesture -- which no amount of button hunting will
+    /// find. Rather than synthesise pointer events (which need real coordinates and hit-testing,
+    /// and would reintroduce every problem clicking-by-position has), this walks up from the
+    /// matched element to the first DataContext exposing that ICommand and executes it. Same code
+    /// path the gesture would reach.
+    /// </summary>
+    private string Invoke(string rest)
+    {
+        var space = rest.LastIndexOf(' ');
+        if (space <= 0) return "invoke: usage invoke <text> <CommandName>";
+        var text = rest[..space].Trim();
+        var commandName = rest[(space + 1)..].Trim();
+
+        var match = _window.GetVisualDescendants().OfType<Control>()
+            .FirstOrDefault(c => c.IsEffectivelyVisible
+                                 && TextOf(c).Contains(text, StringComparison.OrdinalIgnoreCase));
+        if (match is null) return $"invoke: nothing visible showing '{text}'";
+
+        for (Control? node = match; node is not null; node = node.Parent as Control)
+        {
+            var context = node.DataContext;
+            if (context is null) continue;
+
+            var property = context.GetType().GetProperty(commandName);
+            if (property?.GetValue(context) is not System.Windows.Input.ICommand command) continue;
+            if (!command.CanExecute(null)) return $"invoke: {commandName} refused (CanExecute false)";
+
+            command.Execute(null);
+            return $"invoke: {commandName} on '{text}' ({context.GetType().Name})";
+        }
+        return $"invoke: found '{text}' but no ancestor exposes {commandName}";
     }
 
     // ------------------------------------------------------------------ waiting

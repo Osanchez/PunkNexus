@@ -283,9 +283,9 @@
       "sizeBytes": 184666,
       "modVersion": "1.0.0",
       "declaredMatches": true,
-      "scannedUtc": "2026-08-09T22:51:13Z",
+      "scannedUtc": "2026-08-09T22:52:01Z",
       "analyzedUtc": null,
-      "status": "queued",
+      "status": "completed",
       "enginesTotal": 0,
       "detections": 0,
       "detectedBy": [],
@@ -293,5 +293,5 @@
       "reportPath": "reports/WeaponForge.json"
     }
   ],
-  "updatedUtc": "2026-08-09T22:51:13Z"
+  "updatedUtc": "2026-08-09T22:52:01Z"
 }

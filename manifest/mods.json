@@ -245,7 +245,7 @@
     },
     {
       "id": "WeaponForge",
-      "manifestUrl": "https://raw.githubusercontent.com/Osanchez/WeaponForge/master/mod.json",
+      "manifestUrl": "https://raw.githubusercontent.com/Osanchez/WeaponForge/main/mod.json",
       "name": "Weapon Forge",
       "author": "Sugarheady",
       "category": "Combat",

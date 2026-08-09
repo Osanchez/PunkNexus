@@ -142,18 +142,18 @@
     {
       "modId": "PunkMultiverse",
       "modName": "Punk Multiverse",
-      "sha256": "a25390b10c18c43a7a1e55e118493d94a80aaa83f8569680bad68bca7a20497c",
-      "fileName": "PunkMultiverse-v0.1.252.zip",
-      "sizeBytes": 462172,
-      "modVersion": "0.1.252",
-      "declaredMatches": null,
-      "scannedUtc": "2026-08-09T16:41:36Z",
-      "analyzedUtc": "2026-08-09T16:41:36Z",
+      "sha256": "cfb20eee885bff9d60ed89a12d4cc32b2a2bad409dd2373e203e26ad9e3051eb",
+      "fileName": "PunkMultiverse-v0.1.254.zip",
+      "sizeBytes": 462222,
+      "modVersion": "0.1.254",
+      "declaredMatches": true,
+      "scannedUtc": "2026-08-09T20:45:31Z",
+      "analyzedUtc": "2026-08-09T20:45:31Z",
       "status": "completed",
       "enginesTotal": 67,
       "detections": 0,
       "detectedBy": [],
-      "permalink": "https://www.virustotal.com/gui/file/a25390b10c18c43a7a1e55e118493d94a80aaa83f8569680bad68bca7a20497c",
+      "permalink": "https://www.virustotal.com/gui/file/cfb20eee885bff9d60ed89a12d4cc32b2a2bad409dd2373e203e26ad9e3051eb",
       "reportPath": "reports/PunkMultiverse.json"
     },
     {
@@ -276,5 +276,5 @@
       "reportPath": "reports/SellVaultItems.json"
     }
   ],
-  "updatedUtc": "2026-08-09T17:06:45Z"
+  "updatedUtc": "2026-08-09T20:45:36Z"
 }

@@ -16,10 +16,16 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             Log.Info($"PUNK Nexus {AppServices.Version} starting.");
-            desktop.MainWindow = new MainWindow
+            var window = new MainWindow
             {
                 DataContext = new MainWindowViewModel(AppServices.Create()),
             };
+            desktop.MainWindow = window;
+
+            // Opt-in remote control, for testing the Play flow without a human clicking it. Gated
+            // on PUNKNEXUS_DIAG=1 so it does not exist for a normal user. Attached on Opened
+            // because it walks the visual tree, and there is not one until the window is shown.
+            window.Opened += (_, _) => DiagHarness.MaybeStart(window);
         }
 
         base.OnFrameworkInitializationCompleted();

@@ -69,10 +69,17 @@ public sealed partial class ModRowViewModel : ViewModelBase
         !string.IsNullOrWhiteSpace(InstalledVersion) &&
         !string.Equals(PublishedVersion, InstalledVersion, StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>Exact-match gate: a mismatch blocks the install outright.</summary>
-    public bool IsBlocked => Compatibility?.Blocks == true;
+    /// <summary>
+    /// The mod is not confirmed against this game version. Advisory only -- it warns, it does not
+    /// stop anyone. Install stays available; see CompatibilityResult.IsWarning for why.
+    /// </summary>
+    public bool IsUncertain => Compatibility?.IsWarning == true;
 
-    public bool CanInstall => !IsBusy && !IsBlocked && !IsUnavailable && Published is not null;
+    /// <summary>
+    /// Nothing about compatibility appears here on purpose. The only real blockers are a missing
+    /// manifest (there is no file to fetch) and an operation already running.
+    /// </summary>
+    public bool CanInstall => !IsBusy && !IsUnavailable && Published is not null;
 
     /// <summary>
     /// The copy on disk was built for a different game version than the one now installed — the
@@ -93,8 +100,8 @@ public sealed partial class ModRowViewModel : ViewModelBase
 
     public string CompatibilityBadge => Compatibility?.State switch
     {
-        CompatibilityState.Incompatible => "wrong game version",
-        CompatibilityState.Undeclared => "no game version declared",
+        CompatibilityState.Incompatible => "unconfirmed",
+        CompatibilityState.Undeclared => "no version declared",
         CompatibilityState.UnknownGame => "not checked",
         _ => "",
     };
@@ -107,7 +114,7 @@ public sealed partial class ModRowViewModel : ViewModelBase
     public string StatusLabel =>
         IsResolving ? "Checking…"
         : IsUnavailable ? "Manifest unavailable"
-        : !IsInstalled && IsBlocked ? "Cannot install"
+        : !IsInstalled && IsUncertain ? "Compatibility unconfirmed"
         : !IsInstalled ? "Not installed"
         : InstalledIsStale ? "Installed — game has moved on"
         : HasUpdate ? $"Update available — v{PublishedVersion}"
@@ -188,13 +195,6 @@ public sealed partial class ModRowViewModel : ViewModelBase
     {
         if (string.IsNullOrWhiteSpace(_session.Path) || Published is null) return;
 
-        if (IsBlocked)
-        {
-            // The button is disabled in this state; this is the belt to that suspenders.
-            Error = Compatibility?.Summary;
-            return;
-        }
-
         Error = null;
         IsBusy = true;
         IsProgressIndeterminate = true;
@@ -224,10 +224,13 @@ public sealed partial class ModRowViewModel : ViewModelBase
                 var dependency = LookupMod?.Invoke(dependencyId);
                 if (dependency is null || dependency.IsInstalled) continue;
 
-                if (dependency.Published is null || dependency.IsBlocked)
+                // Only a missing manifest stops a dependency now. An unconfirmed game version is
+                // carried along with the parent: refusing here would block a mod the player
+                // explicitly chose to try, over a warning about something else.
+                if (dependency.Published is null)
                     throw new InstallException(
-                        $"{Name} needs {dependency.Name}, which cannot be installed on your game " +
-                        $"version. {dependency.Compatibility?.Summary}".TrimEnd());
+                        $"{Name} needs {dependency.Name}, and that mod's manifest could not be "
+                        + "fetched, so there is nothing to install.");
 
                 BusyText = $"Installing {dependency.Name} (required by {Name})…";
                 var dependencyInstalled = await _services.Installer
@@ -323,7 +326,7 @@ public sealed partial class ModRowViewModel : ViewModelBase
         OnPropertyChanged(nameof(PublishedVersion));
         OnPropertyChanged(nameof(IsUnavailable));
         OnPropertyChanged(nameof(HasUpdate));
-        OnPropertyChanged(nameof(IsBlocked));
+        OnPropertyChanged(nameof(IsUncertain));
         OnPropertyChanged(nameof(CanInstall));
         OnPropertyChanged(nameof(InstalledIsStale));
         OnPropertyChanged(nameof(ShowCompatibilityBadge));

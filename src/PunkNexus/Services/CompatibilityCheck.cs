@@ -5,10 +5,10 @@ public enum CompatibilityState
     /// <summary>The mod declares exactly the game version installed.</summary>
     Compatible,
 
-    /// <summary>The mod declares a different game version. Install is blocked.</summary>
+    /// <summary>The mod declares a different game version than the one installed.</summary>
     Incompatible,
 
-    /// <summary>The mod declares nothing. A packaging error, and blocked as one.</summary>
+    /// <summary>The mod declares nothing. A packaging error, but not a reason to refuse.</summary>
     Undeclared,
 
     /// <summary>The client could not read the game's version. Not the mod's fault; not blocked.</summary>
@@ -21,7 +21,18 @@ public sealed record CompatibilityResult(
     string? InstalledGameVersion,
     string Summary)
 {
-    public bool Blocks => State is CompatibilityState.Incompatible or CompatibilityState.Undeclared;
+    /// <summary>
+    /// True when we cannot confirm this mod matches the installed game. It is a WARNING, never a
+    /// refusal.
+    ///
+    /// This used to block the install outright, on the theory that an author must publish a build
+    /// per game version. In practice one base-game patch then took the whole catalogue down at
+    /// once -- 0.12.10 to 0.12.11 left every one of the 16 listed mods uninstallable, each blaming
+    /// its author for not having published something. Most mods are unaffected by a patch, the
+    /// declared version is only ever the author's last claim rather than a tested fact, and a
+    /// player who wants to try one is better served by a clear warning than by a dead button they
+    /// cannot reason about.
+    /// </summary>
     public bool IsWarning => State is not CompatibilityState.Compatible;
 }
 
@@ -44,8 +55,8 @@ public static class CompatibilityCheck
         if (string.IsNullOrWhiteSpace(declared))
             return new CompatibilityResult(
                 CompatibilityState.Undeclared, null, installed,
-                "This mod does not declare which game version it was built for, so it cannot be " +
-                "installed. Its author needs to add a gameVersion to its manifest.");
+                "This mod does not declare which game version it was built for, so its " +
+                "compatibility is unknown. Its author needs to add a gameVersion to its manifest.");
 
         if (string.IsNullOrWhiteSpace(installed))
             return new CompatibilityResult(
@@ -59,6 +70,7 @@ public static class CompatibilityCheck
 
         return new CompatibilityResult(
             CompatibilityState.Incompatible, declared, installed,
-            $"Built for game {declared}, but yours is {installed}.");
+            $"Built for game {declared} and not reported as updated for {installed}. It may work "
+            + "anyway — most mods are unaffected by a patch — but it has not been confirmed.");
     }
 }

@@ -288,12 +288,12 @@ public sealed class InstallService
     {
         var accepted = ConfirmDownload is null || await ConfirmDownload(report).ConfigureAwait(true);
 
-        if (report.Blocks)
-        {
-            Log.Error($"Refused {report.ModName}: {report.Headline} — " +
-                      string.Join("; ", report.Details.Where(d => d.Ok == false).Select(d => d.Text)));
-            throw new InstallException(report.Message);
-        }
+        // Logged at error level whether or not the user proceeds, so a mismatch always leaves a
+        // trace on disk. It is their call to make, but it must never be a silent one.
+        if (report.ChecksumMismatch)
+            Log.Error($"CHECKSUM MISMATCH for {report.ModName}: {report.Headline} — "
+                      + string.Join("; ", report.Details.Where(d => d.Ok == false).Select(d => d.Text))
+                      + $" — user chose to {(accepted ? "INSTALL ANYWAY" : "cancel")}.");
 
         if (!accepted) Log.Info($"User declined to install {report.ModName} after verification.");
         return accepted;

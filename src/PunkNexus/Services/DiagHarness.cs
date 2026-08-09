@@ -1,0 +1,305 @@
+using System.Text;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Media.Imaging;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
+
+namespace PunkNexus.Services;
+
+/// <summary>
+/// A file-driven remote control for this window, so the Play flow can be tested without a human
+/// clicking it.
+///
+/// The parts of PUNK Nexus that most need testing are exactly the parts that only exist behind a
+/// button: the mod swap moves a player's files around and promises to put them back, and until now
+/// the only way to exercise it was by hand. Automating a desktop GUI from outside is unreliable
+/// (it depends on window focus, screen coordinates and timing, and it can click whatever happens
+/// to be under the cursor). Driving it from inside the app is exact: commands run on the UI thread
+/// against the real visual tree, and a control that is not there is an error rather than a
+/// mis-click on something else.
+///
+/// OFF unless PUNKNEXUS_DIAG=1 is in the environment. Not a setting, deliberately -- a settings
+/// file can be edited by accident or carried between machines, whereas an environment variable is
+/// set by whoever launches the process and disappears with it. A normal user never has this.
+///
+/// Protocol matches the game mod's devcmd harness, because the same person is driving both:
+///   write a line to  %LocalAppData%\PunkNexus\devcmd.txt
+///   read the answer from %LocalAppData%\PunkNexus\devout.txt
+///
+/// Commands:
+///   uidump                 every interactive control: kind, id, text, enabled, visible
+///   click &lt;id-or-text&gt;     invoke the first match (buttons, tabs, checkboxes, list rows)
+///   settext &lt;id&gt; &lt;value&gt;   set a TextBox's text
+///   tab &lt;name&gt;             select a tab by header
+///   screenshot &lt;name&gt;      render THIS WINDOW to shots\&lt;name&gt;.png
+///   state                  settings + install state + shelf, as the app sees them
+///   quit                   close the app
+/// </summary>
+public sealed class DiagHarness
+{
+    private readonly Window _window;
+    private readonly string _cmdFile;
+    private readonly string _outFile;
+    private readonly string _shotDir;
+    private DispatcherTimer? _timer;
+    private long _consumed;
+
+    private DiagHarness(Window window)
+    {
+        _window = window;
+        _cmdFile = Path.Combine(AppPaths.Root, "devcmd.txt");
+        _outFile = Path.Combine(AppPaths.Root, "devout.txt");
+        _shotDir = Path.Combine(AppPaths.Root, "shots");
+    }
+
+    /// <summary>Start the harness if the environment asks for it. Returns null otherwise.</summary>
+    public static DiagHarness? MaybeStart(Window window)
+    {
+        var flag = Environment.GetEnvironmentVariable("PUNKNEXUS_DIAG");
+        if (!string.Equals(flag, "1", StringComparison.Ordinal)) return null;
+
+        var harness = new DiagHarness(window);
+        harness.Start();
+        return harness;
+    }
+
+    private void Start()
+    {
+        try
+        {
+            Directory.CreateDirectory(_shotDir);
+            // Start from a clean slate so a command file left over from a previous run is not
+            // replayed into a fresh window -- which would look like the app acting on its own.
+            if (File.Exists(_cmdFile)) File.Delete(_cmdFile);
+            File.WriteAllText(_outFile, $"diag harness ready ({DateTime.Now:HH:mm:ss})\n");
+        }
+        catch (Exception ex)
+        {
+            Log.Error("diag harness could not prepare its files", ex);
+            return;
+        }
+
+        // Polled rather than FileSystemWatcher: a watcher fires mid-write and hands you half a
+        // line. 250ms is far below human reaction time and costs nothing.
+        _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+        _timer.Tick += (_, _) => Pump();
+        _timer.Start();
+
+        Log.Warn("DIAGNOSTIC MODE: this window can be driven from " + _cmdFile
+                 + ". Unset PUNKNEXUS_DIAG to disable.");
+    }
+
+    private void Pump()
+    {
+        string[] lines;
+        try
+        {
+            if (!File.Exists(_cmdFile)) return;
+            var info = new FileInfo(_cmdFile);
+            if (info.Length <= _consumed) return;                 // nothing new appended
+            using var fs = new FileStream(_cmdFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            fs.Seek(_consumed, SeekOrigin.Begin);
+            using var sr = new StreamReader(fs);
+            lines = sr.ReadToEnd().Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            _consumed = fs.Position;
+        }
+        catch { return; }                                          // mid-write; try again next tick
+
+        foreach (var raw in lines)
+        {
+            var line = raw.Trim();
+            if (line.Length == 0 || line.StartsWith('#')) continue;
+            try { Execute(line); }
+            catch (Exception ex) { Out($"ERROR {line}: {ex.Message}"); }
+        }
+    }
+
+    private void Execute(string line)
+    {
+        var space = line.IndexOf(' ');
+        var verb = (space < 0 ? line : line[..space]).ToLowerInvariant();
+        var rest = space < 0 ? "" : line[(space + 1)..].Trim();
+
+        switch (verb)
+        {
+            case "uidump": Out(Dump()); return;
+            case "click": Out(Click(rest)); return;
+            case "tab": Out(SelectTab(rest)); return;
+            case "settext": Out(SetText(rest)); return;
+            case "screenshot": Out(Screenshot(rest)); return;
+            case "state": Out(State()); return;
+            case "quit":
+                Out("quit: closing");
+                Dispatcher.UIThread.Post(() => _window.Close());
+                return;
+            default: Out($"unknown command '{verb}'"); return;
+        }
+    }
+
+    // ------------------------------------------------------------------ inspection
+
+    /// <summary>
+    /// A stable handle for a control. Name if the XAML gave it one, otherwise its visible text --
+    /// which is what a person would say ("click Play"), and what stays meaningful across layout
+    /// changes that renumber everything else.
+    /// </summary>
+    private static string IdOf(Control c)
+    {
+        if (!string.IsNullOrEmpty(c.Name)) return c.Name!;
+        var text = TextOf(c);
+        return string.IsNullOrEmpty(text) ? c.GetType().Name : text;
+    }
+
+    private static string TextOf(Control c) => c switch
+    {
+        // CheckBox : ToggleButton : Button in Avalonia, so the derived types come first or the
+        // Button arm eats them.
+        CheckBox cb => cb.Content?.ToString() ?? "",
+        TabItem ti => ti.Header?.ToString() ?? "",
+        Button b => b.Content?.ToString() ?? "",
+        TextBox t => t.Text ?? "",
+        TextBlock tb => tb.Text ?? "",
+        ContentControl cc => cc.Content?.ToString() ?? "",
+        _ => "",
+    };
+
+    private string Dump()
+    {
+        var sb = new StringBuilder("uidump:\n");
+        var n = 0;
+        foreach (var c in Interactive())
+        {
+            sb.Append("  ").Append(c.GetType().Name.PadRight(12))
+              .Append(" id='").Append(IdOf(c)).Append('\'');
+            var text = TextOf(c);
+            if (!string.IsNullOrEmpty(text) && text != IdOf(c)) sb.Append(" text='").Append(text).Append('\'');
+            sb.Append(" enabled=").Append(c.IsEnabled)
+              .Append(" visible=").Append(c.IsVisible);
+            if (c is TabItem { IsSelected: true }) sb.Append(" SELECTED");
+            sb.Append('\n');
+            n++;
+        }
+        sb.Append($"  {n} interactive control(s)");
+        return sb.ToString();
+    }
+
+    /// <summary>Everything a person could act on. Visual-tree order, so it reads top to bottom.</summary>
+    private IEnumerable<Control> Interactive() =>
+        _window.GetVisualDescendants().OfType<Control>()
+               .Where(c => c is Button or CheckBox or TextBox or TabItem or ComboBox or ListBoxItem);
+
+    // ------------------------------------------------------------------ actions
+
+    private Control? Find(string idOrText)
+    {
+        if (string.IsNullOrWhiteSpace(idOrText)) return null;
+        var all = Interactive().Where(c => c.IsVisible && c.IsEnabled).ToList();
+        return all.FirstOrDefault(c => string.Equals(IdOf(c), idOrText, StringComparison.OrdinalIgnoreCase))
+            ?? all.FirstOrDefault(c => string.Equals(TextOf(c), idOrText, StringComparison.OrdinalIgnoreCase))
+            ?? all.FirstOrDefault(c => TextOf(c).Contains(idOrText, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private string Click(string target)
+    {
+        var c = Find(target);
+        if (c == null) return $"click: no visible, enabled control matching '{target}'";
+
+        switch (c)
+        {
+            // Again: CheckBox and TabItem before Button, or they never match.
+            case CheckBox cb:
+                cb.IsChecked = !(cb.IsChecked ?? false);
+                return $"click: '{IdOf(c)}' -> {cb.IsChecked}";
+            case Button b:
+                // Prefer the bound command over a synthetic pointer event: it runs exactly what the
+                // button would run, and cannot land on whatever happens to overlap it on screen.
+                if (b.Command != null && b.Command.CanExecute(b.CommandParameter))
+                    b.Command.Execute(b.CommandParameter);
+                else
+                    b.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+                return $"click: '{IdOf(c)}' (Button)";
+            case TabItem ti:
+                ti.IsSelected = true;
+                return $"click: tab '{IdOf(c)}'";
+            case ListBoxItem li:
+                li.IsSelected = true;
+                return $"click: row '{IdOf(c)}'";
+            default:
+                c.Focus();
+                return $"click: focused '{IdOf(c)}' ({c.GetType().Name})";
+        }
+    }
+
+    private string SelectTab(string header)
+    {
+        var tab = Interactive().OfType<TabItem>()
+            .FirstOrDefault(t => (t.Header?.ToString() ?? "").Contains(header, StringComparison.OrdinalIgnoreCase));
+        if (tab == null)
+            return "tab: no such tab. Have: "
+                 + string.Join(", ", Interactive().OfType<TabItem>().Select(t => t.Header?.ToString()));
+        tab.IsSelected = true;
+        return $"tab: '{tab.Header}' selected";
+    }
+
+    private string SetText(string rest)
+    {
+        var space = rest.IndexOf(' ');
+        if (space < 0) return "settext: usage settext <id> <value>";
+        var id = rest[..space];
+        var value = rest[(space + 1)..];
+        if (Find(id) is not TextBox box) return $"settext: no TextBox matching '{id}'";
+        box.Text = value;
+        return $"settext: '{id}' = '{value}'";
+    }
+
+    /// <summary>
+    /// Render THIS WINDOW to a PNG. Avalonia draws the window's own visual tree into a bitmap, so
+    /// the file can only ever contain this application -- never another window, and never whatever
+    /// else is on the desktop. That property is the whole reason to do it this way.
+    /// </summary>
+    private string Screenshot(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) name = "shot";
+        var safe = string.Concat(name.Split(Path.GetInvalidFileNameChars()));
+        var path = Path.Combine(_shotDir, safe + ".png");
+
+        var size = _window.ClientSize;
+        if (size.Width < 1 || size.Height < 1) return "screenshot: window has no size yet";
+
+        var pixel = new PixelSize((int)size.Width, (int)size.Height);
+        using var bitmap = new RenderTargetBitmap(pixel, new Vector(96, 96));
+        bitmap.Render(_window);
+        bitmap.Save(path);
+        return $"screenshot: {path}";
+    }
+
+    private string State()
+    {
+        var sb = new StringBuilder("state:\n");
+        try
+        {
+            sb.Append("  settings: ").Append(File.Exists(AppPaths.SettingsFile)
+                ? File.ReadAllText(AppPaths.SettingsFile).Replace("\n", " ").Replace("\r", "")
+                : "(none)").Append('\n');
+
+            if (Directory.Exists(AppPaths.InstallsDir))
+                foreach (var f in Directory.GetFiles(AppPaths.InstallsDir, "*.json"))
+                    sb.Append("  install ").Append(Path.GetFileName(f)).Append(": ")
+                      .Append(File.ReadAllText(f).Replace("\n", " ").Replace("\r", "")).Append('\n');
+            else sb.Append("  installs: (none)\n");
+        }
+        catch (Exception ex) { sb.Append("  ERROR ").Append(ex.Message).Append('\n'); }
+        return sb.ToString().TrimEnd();
+    }
+
+    // ------------------------------------------------------------------ output
+
+    private void Out(string text)
+    {
+        var stamped = $"[{DateTime.Now:HH:mm:ss}] {text}";
+        try { File.AppendAllText(_outFile, stamped + "\n"); } catch { }
+        Log.Info("diag: " + text.Split('\n')[0]);
+    }
+}

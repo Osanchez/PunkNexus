@@ -97,8 +97,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Shows what verification found between download and extraction. A failed check is reported
-    /// with a single button — there is no "install anyway" for a file that is not what it claims.
+    /// Shows what verification found between download and extraction.
+    ///
+    /// A checksum mismatch still offers a way forward, because the check is advisory -- but the
+    /// button says "Install anyway" rather than "Install", so nobody agrees to it by reflex on a
+    /// dialog they have clicked through a hundred times. The panel stays red.
     /// </summary>
     private Task<bool> ShowDownloadReportAsync(DownloadReport report)
     {
@@ -110,8 +113,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             Details = report.Details
                 .Append(new DialogDetail($"{report.FileName} · {DownloadReport.FormatSize(report.SizeBytes)}"))
                 .ToList(),
-            AcceptText = report.Blocks ? "Close" : "Install",
-            DeclineText = report.Blocks ? null : "Cancel",
+            AcceptText = report.ChecksumMismatch ? "Install anyway" : "Install",
+            DeclineText = "Cancel",
         };
 
         return _services.Dialogs.ShowAsync(request);

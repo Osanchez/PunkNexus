@@ -8,7 +8,7 @@ public enum DownloadVerdict
     /// <summary>The file downloaded, but nothing proves it is the file the author published.</summary>
     Unverified,
 
-    /// <summary>The file is not what the manifest describes. Never installed.</summary>
+    /// <summary>The file does not match the checksum the manifest published.</summary>
     Failed,
 }
 
@@ -25,8 +25,20 @@ public sealed record DownloadReport(
     string Message,
     IReadOnlyList<DialogDetail> Details)
 {
-    /// <summary>A failed report is never installable; the dialog informs, it does not ask.</summary>
-    public bool Blocks => Verdict == DownloadVerdict.Failed;
+    /// <summary>
+    /// A mismatch is reported, not enforced. Worth being precise about what this check is and is
+    /// not: the checksum is published in the author's own manifest, in the same repository as the
+    /// release it describes, so it cannot defend against an author whose account is compromised --
+    /// whoever can swap the file can edit the checksum beside it. What it does catch is a download
+    /// corrupted in transit, and a third party replacing a release asset without being able to
+    /// edit the manifest.
+    ///
+    /// That is a narrow enough guarantee that refusing outright was the wrong trade: it stranded
+    /// people on a mismatch they could not get past, for a signal that is often just a bad
+    /// download. So the dialog says plainly what was found and lets the player decide, and the
+    /// mismatch is logged either way.
+    /// </summary>
+    public bool ChecksumMismatch => Verdict == DownloadVerdict.Failed;
 
     public DialogKind Kind => Verdict switch
     {

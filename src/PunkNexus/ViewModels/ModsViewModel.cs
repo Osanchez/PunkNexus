@@ -58,8 +58,8 @@ public sealed partial class ModsViewModel : ViewModelBase
     public int TotalCount => _all.Count;
 
     /// <summary>How many listed mods cannot be installed on this game build.</summary>
-    public int BlockedCount => _all.Count(m => m.IsBlocked);
-    public bool HasBlocked => BlockedCount > 0;
+    public int UncertainCount => _all.Count(m => m.IsUncertain);
+    public bool HasUncertain => UncertainCount > 0;
 
     public string GameVersionLabel => _session.Build.HasVersion
         ? $"Game {_session.Build.Version}"
@@ -276,8 +276,8 @@ public sealed partial class ModsViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsEmpty));
         OnPropertyChanged(nameof(InstalledCount));
         OnPropertyChanged(nameof(TotalCount));
-        OnPropertyChanged(nameof(BlockedCount));
-        OnPropertyChanged(nameof(HasBlocked));
+        OnPropertyChanged(nameof(UncertainCount));
+        OnPropertyChanged(nameof(HasUncertain));
         OnPropertyChanged(nameof(GameVersionLabel));
         OnPropertyChanged(nameof(GameVersionUnknown));
     }
@@ -319,7 +319,7 @@ public sealed partial class ModsViewModel : ViewModelBase
 
         // Installed mods stay visible even when blocked, so a mod that the game has outgrown can
         // still be found and removed.
-        if (CompatibleOnly) query = query.Where(m => !m.IsBlocked || m.IsInstalled);
+        if (CompatibleOnly) query = query.Where(m => !m.IsUncertain || m.IsInstalled);
 
         Visible.Clear();
         foreach (var row in query.OrderBy(m => m.Name, StringComparer.OrdinalIgnoreCase))

@@ -90,13 +90,13 @@
         <TextBlock Text="{Binding LoaderError}" FontSize="13" Foreground="{DynamicResource Danger}" />
       </Border>
 
-      <!-- Exact-match gating means a game update can shut the catalog down; say so plainly
-           rather than leaving a screen of grayed-out buttons unexplained. -->
-      <Border Classes="row" Padding="14,11" IsVisible="{Binding HasBlocked}">
-        <TextBlock FontSize="13" Foreground="{DynamicResource Warning}">
+      <!-- A game patch leaves most of the catalogue unconfirmed at once. Say what that means and
+           let the player decide, rather than presenting a screen of dead buttons. -->
+      <Border Classes="row" Padding="14,11" IsVisible="{Binding HasUncertain}">
+        <TextBlock FontSize="13" Foreground="{DynamicResource Warning}" TextWrapping="Wrap">
           <TextBlock.Text>
-            <MultiBinding StringFormat="{}{0} mod(s) were built for a different game version and cannot be installed until their authors publish a build for {1}.">
-              <Binding Path="BlockedCount" />
+            <MultiBinding StringFormat="{}{0} mod(s) have not been reported as updated for {1}. You can still install them — most mods are unaffected by a game patch — but they have not been confirmed on this version.">
+              <Binding Path="UncertainCount" />
               <Binding Path="GameVersionLabel" />
             </MultiBinding>
           </TextBlock.Text>
@@ -205,7 +205,7 @@
 
                       <TextBlock Text="{Binding CompatibilityText}" FontSize="12"
                                  Foreground="{DynamicResource Danger}"
-                                 IsVisible="{Binding IsBlocked}" />
+                                 IsVisible="{Binding IsUncertain}" />
                     </StackPanel>
 
                     <StackPanel Grid.Column="2" Spacing="8" VerticalAlignment="Top" MinWidth="128">

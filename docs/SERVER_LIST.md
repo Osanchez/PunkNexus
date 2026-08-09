@@ -88,7 +88,7 @@ Publishing is **off by default**, and that default is load-bearing. Hosting norm
 friends-only lobby reachable only by invite or by the pasted lobby code; a co-op session with three
 friends must never turn up in a public browser because someone shipped a default the other way.
 
-In `BepInEx/config/…/PunkMultiverse.cfg`:
+In `BepInEx/plugins/PunkMultiverse/config.cfg`:
 
 ```ini
 [Session]

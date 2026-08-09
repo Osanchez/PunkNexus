@@ -242,6 +242,22 @@
         "developer"
       ],
       "enabled": true
+    },
+    {
+      "id": "WeaponForge",
+      "manifestUrl": "https://raw.githubusercontent.com/Osanchez/WeaponForge/master/mod.json",
+      "name": "Weapon Forge",
+      "author": "Sugarheady",
+      "category": "Combat",
+      "description": "Build custom weapons from small JSON files — no C#, no compiling. Clones a real in-game weapon as a template and applies your stats on top, plus orbit rings, wave motion, turrets, chain lightning, phasing and sub-emitters.",
+      "iconUrl": null,
+      "homepage": "https://github.com/Osanchez/WeaponForge",
+      "tags": [
+        "weapons",
+        "content",
+        "modding"
+      ],
+      "enabled": true
     }
   ]
 }

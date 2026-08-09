@@ -147,8 +147,8 @@
       "sizeBytes": 462222,
       "modVersion": "0.1.254",
       "declaredMatches": true,
-      "scannedUtc": "2026-08-09T20:45:31Z",
-      "analyzedUtc": "2026-08-09T20:45:31Z",
+      "scannedUtc": "2026-08-09T22:42:07Z",
+      "analyzedUtc": "2026-08-09T20:44:32Z",
       "status": "completed",
       "enginesTotal": 67,
       "detections": 0,
@@ -276,5 +276,5 @@
       "reportPath": "reports/SellVaultItems.json"
     }
   ],
-  "updatedUtc": "2026-08-09T20:45:36Z"
+  "updatedUtc": "2026-08-09T22:42:13Z"
 }

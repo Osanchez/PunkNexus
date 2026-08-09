@@ -84,18 +84,24 @@ back to Steam's count when it is absent.
 
 ## Opting in
 
-Publishing is **off by default**, and that default is load-bearing. Hosting normally creates a
-friends-only lobby reachable only by invite or by the pasted lobby code; a co-op session with three
-friends must never turn up in a public browser because someone shipped a default the other way.
+The host picks per session, on **PLAY ONLINE → HOST → GAME SETTINGS**, from a **SERVER VISIBILITY**
+row offering PRIVATE or PUBLIC. It starts on **PRIVATE**, and that default is load-bearing: a co-op
+session with three friends must never turn up in a public browser because someone forgot a setting.
+Only PUBLIC sessions are stamped with the browser keys, and only stamped lobbies are listed here.
+
+Visibility lives on that screen rather than in config because it is a per-session decision — the
+same player wants a public game some nights and a private one on others.
 
 In `BepInEx/plugins/PunkMultiverse/config.cfg`:
 
 ```ini
 [Session]
-PublishServer = true          # off by default — this is the opt-in
+PublishServer = false             # only what the VISIBILITY row starts on
 ServerName    = Neon Wasteland    # blank = "<persona>'s Co-op"
 ServerRegion  = EU                # blank = no region shown
 ```
+
+A dedicated server has no settings screen, so for one `PublishServer` *is* the switch.
 
 The mod re-publishes on a 3-second tick, but only when something a browsing player would notice has
 actually changed — the listing is fingerprinted and an unchanged fingerprint writes nothing. Steam

@@ -25,7 +25,7 @@ public static class GameLocator
 {
     public const string SteamAppId = "2850470";
     public const string GameExe = "Punk.exe";
-    private const string DataDir = "Punk_Data";
+    public const string DataDir = "Punk_Data";
 
     /// <summary>
     /// Verifies a folder really is a PUNK install. Required checks decide validity; the rest are

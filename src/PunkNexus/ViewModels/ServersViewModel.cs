@@ -59,6 +59,19 @@ public sealed partial class ServersViewModel : ViewModelBase
     {
         _services = services;
         _session = session;
+
+        _session.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName != nameof(GameSession.IsGameRunning)) return;
+
+            OnPropertyChanged(nameof(CanPlay));
+            OnPropertyChanged(nameof(PlayBlockedNotice));
+            OnPropertyChanged(nameof(IsPlayBlocked));
+
+            // "Launched — joining X." describes a moment, not a state. Once the game is closed it
+            // is a stale claim about a session that has ended, so it goes with the game.
+            if (!_session.IsGameRunning) PlayStatus = null;
+        };
     }
 
     public bool NothingPublished => _all.Count == 0 && !IsLoading;
@@ -69,7 +82,23 @@ public sealed partial class ServersViewModel : ViewModelBase
 
     /// <summary>Exposed as a positive because a compiled binding cannot negate through a cast,
     /// which is what a row's Play button has to do to reach this page's state.</summary>
-    public bool CanPlay => !IsPlayBusy;
+    public bool CanPlay => !IsPlayBusy && !_session.IsGameRunning;
+
+    /// <summary>
+    /// Play is off while the game is open, and this says why — an explanation the Launch button
+    /// does not need because its own label can carry it.
+    ///
+    /// The reason is stronger than tidiness. Play may move plugin folders around to match the
+    /// server, and doing that under a running game rearranges assemblies it has already loaded:
+    /// the swap appears to work, the game is unaffected until it next writes, and the mods that
+    /// come back afterwards are not the ones that were set aside.
+    /// </summary>
+    public bool IsPlayBlocked => _session.IsGameRunning;
+
+    public string PlayBlockedNotice => _session.IsGameRunning
+        ? "PUNK is open. Close the game to join a server from here — joining may change which mods "
+          + "are installed, which cannot be done safely while it is running."
+        : "";
 
     public int SteamCount => _all.Count(s => s.Source == ServerSource.Steam);
     public int DedicatedCount => _all.Count(s => s.Source == ServerSource.Dedicated);
@@ -180,6 +209,14 @@ public sealed partial class ServersViewModel : ViewModelBase
         if (!_session.HasPath)
         {
             Notice = "Set up your game folder before joining a server.";
+            return;
+        }
+
+        // Re-checked here and not only on the button: the poll that clears this runs every five
+        // seconds, so a click can land in the window where the button is stale.
+        if (_session.IsGameRunning)
+        {
+            Notice = PlayBlockedNotice;
             return;
         }
 

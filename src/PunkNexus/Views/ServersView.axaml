@@ -106,6 +106,13 @@
           <TextBlock Text="{Binding SteamNotice}" FontSize="13" Foreground="{DynamicResource Warning}" />
         </Border>
 
+        <!-- Every Play button on the page is disabled while the game is open. Say why once, here,
+             rather than leaving a row of dead buttons to be interpreted. -->
+        <Border Classes="row" Padding="14,11" IsVisible="{Binding IsPlayBlocked}">
+          <TextBlock Text="{Binding PlayBlockedNotice}" FontSize="13" TextWrapping="Wrap"
+                     Foreground="{DynamicResource Warning}" />
+        </Border>
+
         <!-- Deliberate empty state: the feed exists and is reachable, there is just nothing on it
              yet. Says so plainly rather than looking like a failure. -->
         <Border Classes="card" IsVisible="{Binding NothingPublished}">

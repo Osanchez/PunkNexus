@@ -22,15 +22,83 @@ public sealed class GameLauncher
     /// <summary>Raised on a background thread when a game this launcher started has exited.</summary>
     public event Action? Exited;
 
+    /// <summary>Raised right after a launch succeeds, so the UI can go "running" without waiting
+    /// for the next poll to notice.</summary>
+    public event Action? Started;
+
     private Process? _process;
 
-    public bool IsRunning
+    /// <summary>True while a game THIS launcher started is still running.</summary>
+    public bool IsOursRunning
     {
         get
         {
             try { return _process is { HasExited: false }; }
             catch { return false; }
         }
+    }
+
+    /// <summary>
+    /// True while PUNK is running from <paramref name="gameRoot"/>, no matter who started it.
+    ///
+    /// Holding a <see cref="Process"/> handle only answers "did I start one and is it still alive",
+    /// which is the wrong question for a button: the usual way to have PUNK open is to have started
+    /// it from Steam, and a launcher that only knows about its own children reports "not running"
+    /// for every one of those. So the running check is a lookup, not a handle.
+    ///
+    /// Matched on the executable's full path rather than the process name. Two installs of the same
+    /// game -- a Steam copy and a test copy -- both run a process called "Punk", and disabling this
+    /// install's button because a different install is open would be wrong. A process we cannot
+    /// interrogate (another user's, or one exiting as we look) is treated as "not ours", because
+    /// guessing would disable the button on evidence we do not have.
+    /// </summary>
+    public static bool IsRunningFrom(string? gameRoot)
+    {
+        if (string.IsNullOrWhiteSpace(gameRoot)) return false;
+
+        string exe;
+        try { exe = Path.GetFullPath(Path.Combine(gameRoot, GameLocator.GameExe)); }
+        catch { return false; }
+
+        // Both spellings, because the platforms disagree about what a process is called: Windows
+        // reports ProcessName with the extension stripped ("Punk"), Linux reports the comm value
+        // verbatim ("Punk.exe"). Asking for only one silently finds nothing on the other platform,
+        // which is a running game reported as not running -- and it is invisible until something
+        // depends on the answer. The wrong-platform lookup simply returns an empty set.
+        var names = new[] { Path.GetFileNameWithoutExtension(GameLocator.GameExe), GameLocator.GameExe }
+            .Where(n => !string.IsNullOrEmpty(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        var candidates = new List<Process>();
+        foreach (var name in names)
+        {
+            try { candidates.AddRange(Process.GetProcessesByName(name)); }
+            catch (Exception ex) { Log.Warn($"Could not enumerate '{name}' processes: {ex.Message}"); }
+        }
+
+        try
+        {
+            foreach (var p in candidates)
+            {
+                try
+                {
+                    var file = p.MainModule?.FileName;
+                    if (file is not null &&
+                        string.Equals(Path.GetFullPath(file), exe, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+                catch
+                {
+                    // Access denied, or it exited between the enumeration and this read.
+                }
+            }
+        }
+        finally
+        {
+            foreach (var p in candidates) p.Dispose();
+        }
+
+        return false;
     }
 
     /// <summary>Steam's own convention — what the overlay passes, and what the mod has always read.</summary>
@@ -105,6 +173,7 @@ public sealed class GameLauncher
 
             _process = process;
             Log.Info($"Launched {exe}" + (string.IsNullOrWhiteSpace(arguments) ? "" : $" {arguments}"));
+            Started?.Invoke();
         }
         catch (InstallException)
         {

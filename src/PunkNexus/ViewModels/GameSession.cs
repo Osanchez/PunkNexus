@@ -15,6 +15,16 @@ public sealed partial class GameSession : ObservableObject
     /// </summary>
     [ObservableProperty] private GameBuild _build = GameBuild.Unknown;
 
+    /// <summary>
+    /// Whether PUNK is open from this install — started from anywhere, not just from Nexus.
+    ///
+    /// One flag, owned by the shell, because three separate things need the same answer and would
+    /// otherwise each get it slightly wrong: the Launch button, the Play button, and the sweep that
+    /// puts a player's mods back. The last is the one that matters — restoring mods under a running
+    /// game swaps files the game has already loaded and will write back over.
+    /// </summary>
+    [ObservableProperty] private bool _isGameRunning;
+
     public bool HasPath => !string.IsNullOrWhiteSpace(Path);
 
     partial void OnPathChanged(string? value) => OnPropertyChanged(nameof(HasPath));

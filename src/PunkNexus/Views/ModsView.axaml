@@ -25,13 +25,14 @@
 
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
             <!-- What every mod's declared gameVersion is matched against. -->
-            <Border Classes="pill" VerticalAlignment="Center">
+            <Border Classes="pill" VerticalAlignment="Center"
+                    ToolTip.Tip="{Binding GameVersionDetail}">
               <TextBlock Text="{Binding GameVersionLabel}" />
             </Border>
             <Button Classes="ghost" Content="Refresh"
                     Command="{Binding RefreshCommand}" IsEnabled="{Binding !IsLoading}" />
             <!-- Installing mods and playing them should not be two errands through two launchers. -->
-            <Button Classes="primary" Content="Launch game"
+            <Button Classes="primary" Content="{Binding LaunchLabel}"
                     Command="{Binding LaunchGameCommand}" IsEnabled="{Binding CanLaunch}" />
           </StackPanel>
         </Grid>

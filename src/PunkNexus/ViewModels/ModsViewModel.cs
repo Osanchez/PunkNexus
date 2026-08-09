@@ -59,7 +59,19 @@ public sealed partial class ModsViewModel : ViewModelBase
             }
 
             if (e.PropertyName is nameof(GameSession.Build))
+            {
                 OnPropertyChanged(nameof(GameVersionLabel));
+                OnPropertyChanged(nameof(GameVersionDetail));
+                OnPropertyChanged(nameof(GameVersionUnknown));
+            }
+
+            if (e.PropertyName is nameof(GameSession.IsGameRunning)
+                or nameof(GameSession.Path)
+                or nameof(GameSession.HasPath))
+            {
+                OnPropertyChanged(nameof(CanLaunch));
+                OnPropertyChanged(nameof(LaunchLabel));
+            }
         };
     }
 
@@ -76,6 +88,28 @@ public sealed partial class ModsViewModel : ViewModelBase
         ? $"Current Game Version {_session.Build.Version}"
         : "Current game version unknown";
 
+    /// <summary>
+    /// Where that number came from, on hover. The version gates what can be installed, so "which
+    /// file was this read out of" is a fair question to be able to answer without reading the log —
+    /// and it makes it self-evident that the number is the player's own install rather than
+    /// anything the catalog asserts.
+    /// </summary>
+    public string GameVersionDetail
+    {
+        get
+        {
+            var build = _session.Build;
+            if (!build.HasVersion)
+                return $"Could not read a version from {GameLocator.DataDir}\\globalgamemanagers "
+                     + "in your game folder. Nothing is blocked because of it.";
+
+            var detail = $"Read from your install: {GameLocator.DataDir}\\globalgamemanagers";
+            if (!string.IsNullOrWhiteSpace(build.SteamBuildId))
+                detail += $"\nSteam build {build.SteamBuildId}, from the app manifest beside the install";
+            return detail;
+        }
+    }
+
     public bool GameVersionUnknown => !_session.Build.HasVersion;
 
     partial void OnSearchChanged(string value) => ApplyFilter();
@@ -83,9 +117,18 @@ public sealed partial class ModsViewModel : ViewModelBase
     partial void OnInstalledOnlyChanged(bool value) => ApplyFilter();
     partial void OnCompatibleOnlyChanged(bool value) => ApplyFilter();
 
+    /// <summary>
+    /// Run by the shell before a refresh, to re-read the installed game version. Set by the shell
+    /// because detection belongs to the session, not to this page — but this page owns the button
+    /// the user presses to say "check again".
+    /// </summary>
+    public Func<Task>? BeforeRefresh { get; set; }
+
     [RelayCommand]
     public async Task RefreshAsync()
     {
+        if (BeforeRefresh is not null) await BeforeRefresh().ConfigureAwait(true);
+
         IsLoading = true;
         Notice = null;
         try
@@ -183,6 +226,18 @@ public sealed partial class ModsViewModel : ViewModelBase
         NotifyCounts();
     }
 
+    /// <summary>
+    /// Re-scores every row after the detected game build changes. The filter is re-applied because
+    /// "Compatible only" is a filter over exactly this result — leaving it alone would keep showing
+    /// a list selected against the previous version.
+    /// </summary>
+    public void RefreshCompatibility()
+    {
+        foreach (var row in _all) row.RefreshCompatibility();
+        ApplyFilter();
+        NotifyCounts();
+    }
+
     // ---------------------------------------------------------------- launching
 
     /// <summary>
@@ -192,11 +247,10 @@ public sealed partial class ModsViewModel : ViewModelBase
     [RelayCommand]
     private void LaunchGame()
     {
-        if (!_session.HasPath) return;
+        if (!CanLaunch) return;
         try
         {
             _services.Launcher.Launch(_session.Path!);
-            Status = "PUNK is starting…";
         }
         catch (Exception ex)
         {
@@ -206,7 +260,19 @@ public sealed partial class ModsViewModel : ViewModelBase
         }
     }
 
-    public bool CanLaunch => _session.HasPath;
+    /// <summary>
+    /// Off while PUNK is open. Launching a second copy over a running one is never what was meant,
+    /// and it is the specific mistake a button that stays enabled invites: the first click appears
+    /// to do nothing for the several seconds Unity takes to show a window.
+    /// </summary>
+    public bool CanLaunch => _session.HasPath && !_session.IsGameRunning;
+
+    /// <summary>
+    /// The button says what is true now, rather than narrating what was asked for. "Launching…"
+    /// that never changes is worse than no label at all -- it is indistinguishable from a launch
+    /// that silently failed, so the honest states are only two: it is running, or you can start it.
+    /// </summary>
+    public string LaunchLabel => _session.IsGameRunning ? "PUNK is running" : "Launch game";
 
     // ---------------------------------------------------------------- server visits
 

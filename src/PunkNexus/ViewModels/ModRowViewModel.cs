@@ -214,6 +214,21 @@ public sealed partial class ModRowViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Re-scores this row against the game build now installed, without re-fetching anything over
+    /// the network. Needed because the build can change under a running client — Steam patches
+    /// while Nexus is open — and every badge on this row is an answer about a version that was read
+    /// once at startup.
+    /// </summary>
+    public void RefreshCompatibility()
+    {
+        Compatibility = Published is null
+            ? null
+            : CompatibilityCheck.Evaluate(Published.GameVersion, _session.Build);
+
+        NotifyDerived();
+    }
+
     /// <summary>Re-reads what is actually on disk. Disk is the source of truth, not our records.</summary>
     public void RefreshInstalledState()
     {

@@ -27,6 +27,24 @@ public static class GameVersionDetector
     private static readonly Regex DottedNumeric =
         new(@"^[0-9]+(\.[0-9]+)+$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
+    /// <summary>
+    /// A cheap fingerprint of the file the version is read from — size and last-write time, one
+    /// stat call. Polling this is what lets a Steam patch be noticed while the client sits idle,
+    /// without re-parsing a multi-megabyte blob every few seconds to find out nothing changed.
+    /// </summary>
+    public static (long Length, DateTime WrittenUtc) Stamp(string gameRoot)
+    {
+        try
+        {
+            var info = new FileInfo(Path.Combine(gameRoot, GameLocator.DataDir, "globalgamemanagers"));
+            return info.Exists ? (info.Length, info.LastWriteTimeUtc) : (0, default);
+        }
+        catch
+        {
+            return (0, default);
+        }
+    }
+
     public static GameBuild Detect(string gameRoot)
     {
         var version = ReadBundleVersion(gameRoot);
@@ -46,7 +64,7 @@ public static class GameVersionDetector
     /// </summary>
     private static string? ReadBundleVersion(string gameRoot)
     {
-        var path = Path.Combine(gameRoot, "Punk_Data", "globalgamemanagers");
+        var path = Path.Combine(gameRoot, GameLocator.DataDir, "globalgamemanagers");
         if (!File.Exists(path)) return null;
 
         byte[] bytes;

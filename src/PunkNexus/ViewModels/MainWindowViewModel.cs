@@ -9,6 +9,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private readonly AppServices _services;
     private readonly DispatcherTimer _installWatch;
 
+    /// <summary>Last seen fingerprint of globalgamemanagers, so a patch is noticed while idle.</summary>
+    private (long Length, DateTime WrittenUtc) _buildStamp;
+
     public GameSession Session { get; } = new();
     public SetupViewModel Setup { get; }
     public ModsViewModel Mods { get; }
@@ -45,7 +48,16 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         // The game exiting is what gives the user their own mods back. Nothing else asks for it, so
         // if this handler is ever lost the restore falls to the startup check below.
-        services.Launcher.Exited += () => Dispatcher.UIThread.Post(() => _ = RestoreModsAsync());
+        services.Launcher.Exited += () => Dispatcher.UIThread.Post(() =>
+        {
+            Session.IsGameRunning = false;
+            _ = RestoreModsAsync();
+        });
+
+        // Set the flag from the launch itself rather than waiting for the poll: five seconds of a
+        // button that still says "Launch game" after the click is exactly the window in which
+        // someone clicks it a second time.
+        services.Launcher.Started += () => Dispatcher.UIThread.Post(() => Session.IsGameRunning = true);
 
         // A swap must never outlive the game, and the player should never have to ask for that.
         // Exited covers the ordinary case and startup covers a crashed client, but neither covers
@@ -55,7 +67,16 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         _swapWatch = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
         _swapWatch.Tick += (_, _) =>
         {
-            if (!Session.HasPath || _services.Launcher.IsRunning) return;
+            // Refresh the shared running flag first — this is the only poll, and both the sweep
+            // below and every button depend on it.
+            RefreshGameRunning();
+            CheckBuildStamp();
+
+            // Gated on "is PUNK open", NOT on "did Nexus start it". Those differ in exactly the
+            // case that hurts: the client is restarted while the game is up, so it holds no process
+            // handle, and a handle-based check would call that "not running" and pull the server's
+            // mods out from under a live game.
+            if (!Session.HasPath || Session.IsGameRunning) return;
             if (!_services.Play.HasSwap(Session.Path!)) return;
             _ = RestoreModsAsync();
         };
@@ -63,6 +84,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         // Before the player can do anything with a build we may be about to replace.
         Dispatcher.UIThread.Post(() => _ = OfferUpdateAsync());
+
+        // The Refresh button is the natural "update what you know" gesture, and it used to update
+        // everything except the one number the whole page is scored against.
+        Mods.BeforeRefresh = RedetectBuildAsync;
 
         Setup.Completed += OnSetupCompleted;
         SettingsPage.GameFolderChanged += () => _ = ReloadForSessionAsync();
@@ -150,6 +175,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         // Read the game's version before anything is listed — every compatibility decision below
         // depends on it, and a wrong answer here silently mis-gates the whole catalog.
+        _buildStamp = GameVersionDetector.Stamp(path);
         Session.Build = await Task.Run(() => GameVersionDetector.Detect(path)).ConfigureAwait(true);
 
         IsSetupVisible = false;
@@ -268,6 +294,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     private async Task ReloadForSessionAsync()
     {
+        // Before the catalog, not after: every row's compatibility badge is computed against the
+        // detected build, so refreshing the list against a stale number just renders the wrong
+        // answer faster.
+        await RedetectBuildAsync().ConfigureAwait(true);
+
         SettingsPage.Refresh();
         await Mods.RefreshAsync().ConfigureAwait(true);
         await Servers.RefreshAsync().ConfigureAwait(true);
@@ -281,6 +312,67 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         IsSetupVisible = true;
         Setup.Revalidate();
         _ = Setup.ScanAsync();
+    }
+
+    /// <summary>
+    /// Answers "is PUNK open from this install" by looking for the process, not by consulting a
+    /// handle we may not hold. Cheap enough to poll: one process enumeration every five seconds.
+    /// </summary>
+    private void RefreshGameRunning()
+    {
+        var running = Session.HasPath && GameLauncher.IsRunningFrom(Session.Path);
+        if (running == Session.IsGameRunning) return;
+
+        Session.IsGameRunning = running;
+        Log.Info(running ? "PUNK is running." : "PUNK is no longer running.");
+
+        // A game that closed may have closed because Steam wanted to patch it. Re-read the build
+        // rather than keep showing the number from before.
+        if (!running) _ = RedetectBuildAsync();
+    }
+
+    /// <summary>
+    /// Notices a Steam patch with no user action at all: the file the version is read from is
+    /// stat'd each poll, and only a change re-parses it. Without this the only way to learn the
+    /// game had been patched was to close a game or press Refresh — so a client left open through
+    /// an update kept gating every install on a version that was no longer installed.
+    /// </summary>
+    private void CheckBuildStamp()
+    {
+        if (!Session.HasPath) return;
+
+        // Deliberately does NOT record the new stamp — RedetectBuildAsync owns that. Recording it
+        // here made this a no-op: the re-detect it triggered found the stamp already up to date,
+        // took its own early return, and nothing was ever re-read. Two guards over one piece of
+        // state, each satisfied by the other.
+        if (GameVersionDetector.Stamp(Session.Path!) == _buildStamp) return;
+
+        _ = RedetectBuildAsync();
+    }
+
+    /// <summary>
+    /// Re-reads the game's version from the install. Called whenever the game stops and on every
+    /// catalog refresh, because Steam patches silently and a version read once at startup is a
+    /// number that quietly stops being true — while every compatibility badge keeps trusting it.
+    /// </summary>
+    private async Task RedetectBuildAsync()
+    {
+        if (!Session.HasPath) return;
+
+        // Guarded on the file's fingerprint, so the ordinary case — nothing has changed — costs one
+        // stat instead of re-parsing the blob. Startup used to read it twice for exactly this
+        // reason: EnterMain detected, then the catalog load detected the same file again.
+        var stamp = GameVersionDetector.Stamp(Session.Path!);
+        if (stamp == _buildStamp && Session.Build.HasVersion) return;
+
+        _buildStamp = stamp;
+        var before = Session.Build;
+        var now = await Task.Run(() => GameVersionDetector.Detect(Session.Path!)).ConfigureAwait(true);
+        if (now.Version == before.Version && now.SteamBuildId == before.SteamBuildId) return;
+
+        Log.Info($"Game build changed: {before.Display} -> {now.Display}");
+        Session.Build = now;
+        Mods.RefreshCompatibility();
     }
 
     private void CheckInstallStillPresent()

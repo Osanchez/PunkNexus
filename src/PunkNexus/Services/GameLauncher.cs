@@ -33,8 +33,16 @@ public sealed class GameLauncher
         }
     }
 
-    /// <summary>The launch argument that makes the mod join a Steam lobby on boot.</summary>
+    /// <summary>Steam's own convention — what the overlay passes, and what the mod has always read.</summary>
     public static string ConnectLobbyArgs(string lobbyId) => $"+connect_lobby {lobbyId}";
+
+    /// <summary>
+    /// The mod's transport-agnostic join argument. Takes anything the in-game JOIN button takes —
+    /// <c>host:port</c>, a dedicated server's SteamID64, or a <c>PMV-…</c> code — and the mod picks
+    /// the transport from the target's shape. That is what lets a self-hosted UDP server be
+    /// auto-joined without the player having to change their configured transport.
+    /// </summary>
+    public static string ConnectArgs(string target) => $"+punkmv_connect {target}";
 
     /// <summary>
     /// Starts the game. <paramref name="arguments"/> may be null for a plain launch.

@@ -211,14 +211,21 @@ public sealed partial class ServersViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// A Steam session is joined by lobby id on the command line, which the mod reads on a cold
-    /// start. A dedicated server has no such hook yet, so it launches plain and the user connects
-    /// from the in-game screen — see docs/SERVER_LIST.md.
+    /// Both transports auto-join, by different arguments. A Steam session goes by lobby id through
+    /// Steam's own +connect_lobby; a dedicated server goes by address through the mod's
+    /// +punkmv_connect, which picks the transport from the target's shape. A row carrying neither
+    /// launches plain and the player joins from the in-game screen.
     /// </summary>
-    private static string? JoinArgsFor(ServerEntry server) =>
-        server.IsSteam && !string.IsNullOrWhiteSpace(server.Id)
-            ? GameLauncher.ConnectLobbyArgs(server.Id!)
-            : null;
+    private static string? JoinArgsFor(ServerEntry server)
+    {
+        if (server.IsSteam && !string.IsNullOrWhiteSpace(server.Id))
+            return GameLauncher.ConnectLobbyArgs(server.Id!);
+
+        if (!string.IsNullOrWhiteSpace(server.Address))
+            return GameLauncher.ConnectArgs($"{server.Address}:{server.Port}");
+
+        return null;
+    }
 
     private Task<bool> ConfirmPlanAsync(ServerEntry server, PlayPlan plan)
     {

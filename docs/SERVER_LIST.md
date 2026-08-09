@@ -371,9 +371,18 @@ This costs nothing on the Steam side: `SteamBootstrap` already self-initializes 
 direct launch, so the game still has a Steam identity and the Steam transport still works. The Steam
 client only has to be running.
 
-Dedicated UDP servers have no equivalent launch hook yet, so **Play** on a self-hosted row installs
-the mods and launches, and the user connects from the in-game DIRECT CONNECT screen. Wiring a
-`+punkmv_connect <host:port>` argument is the obvious follow-on when Part 2 is built.
+Self-hosted rows auto-join too, by a different argument. `+connect_lobby` only ever covered Steam
+lobbies, so a dedicated UDP server — the one kind of host with no Steam lobby to hand out — could
+not be auto-joined at all. PunkMultiverse 0.1.246 adds `+punkmv_connect <target>`, which takes
+anything the in-game JOIN button takes (`host:port`, a dedicated server's SteamID64, or a `PMV-…`
+code) and picks the transport from the target's shape. So a player configured for Steam still lands
+on a UDP server correctly, with no config edit and nothing persisted.
+
+The client picks the argument per row: `+connect_lobby <lobbyId>` for a Steam session,
+`+punkmv_connect <address:port>` for a self-hosted one. A row carrying neither launches plain.
+
+Against an older mod build the argument is simply ignored — Unity discards unknown arguments — so
+the game starts and the player joins from the in-game screen, which is the pre-0.1.246 behavior.
 
 ## Identifying what a server runs
 

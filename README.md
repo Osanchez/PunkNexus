@@ -180,14 +180,21 @@ one.
 
 Two honest options:
 
-- **Pin and hash together.** Point `download.url` at an immutable release asset and publish that
-  file's `sha256` beside it. Update both when you release — the same edit that bumps `version`.
-  This is what the mods in [PunkMods](https://github.com/Osanchez/PunkMods) do; see
-  `tools/pin-downloads.py` there for a script that does it from a release's own digests.
+- **Pin and hash together, as a post-build step.** Hashing has to happen *after* the artifact
+  exists, so make it part of your release pipeline: build, publish, then write the asset's URL and
+  its `sha256` into your `mod.json` and commit that. Both move together, so they never disagree.
+  This is what [PunkMods](https://github.com/Osanchez/PunkMods) does — see `tools/pin-downloads.py`
+  and the `Pin downloads and checksums` step in its release workflow, including the `[skip ci]`
+  marker that stops the commit re-triggering the build.
+
+  While a build runs, the manifest still names the *previous* release and its hash — an asset
+  GitHub keeps forever — so the catalog is never inconsistent, only one job behind.
+
 - **Neither.** Keep `repo` + `assetPattern` for auto-latest and leave `sha256` as `null`. The client
   says plainly that the download was not verified beyond the transport.
 
-Don't mix them.
+Don't mix them: `assetPattern` plus a hash is a contradiction, because the pointer is allowed to
+move to a build the hash does not describe.
 
 ## 2. Ship `mod.json` inside your zip
 
@@ -199,13 +206,17 @@ MyCoolMod-v1.2.0.zip
     └── plugins/
         └── MyCoolMod/
             ├── MyCoolMod.dll
-            └── mod.json          ← the same manifest, byte for byte
+            └── mod.json          ← the same manifest
 ```
 
 The archive must extract from the **game folder root** — that is, it contains `BepInEx/...`. That
 installed copy is how the client knows what version you have, so a zip without it is a mod that can
 be installed but never recognised as up to date. (The client will write one from the published
 manifest as a fallback, and log a warning — don't rely on it.)
+
+The two copies must agree on `id` and `version`; that is what the client checks. They need not be
+identical otherwise — if you fill in `sha256` after building (see below), the published copy will
+carry a hash the packaged one cannot, since it is a hash *of* the packaged one.
 
 ## 3. Open a pull request adding your registry entry
 

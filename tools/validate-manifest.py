@@ -57,7 +57,18 @@ def fetch(url: str):
         return json.loads(response.read().decode("utf-8"))
 
 
-def validate_source(where: str, source, required: bool) -> None:
+def is_moving(source: dict) -> bool:
+    """Whether this download can point at different bytes tomorrow without the manifest changing.
+
+    Both forms of that exist: `repo` + `assetPattern` resolves against the newest release, and a
+    `/releases/latest/download/` url does the same thing server-side.
+    """
+    if source.get("repo") and source.get("assetPattern"):
+        return True
+    return "/releases/latest/" in str(source.get("url") or "")
+
+
+def validate_source(where: str, source, required: bool, sha256=None) -> None:
     """A download block is either a fixed url, or a repo plus an asset glob."""
     if source is None:
         if required:
@@ -67,6 +78,14 @@ def validate_source(where: str, source, required: bool) -> None:
     if not isinstance(source, dict):
         error(f"{where}: 'download' must be an object.")
         return
+
+    # A checksum and a moving pointer contradict each other: the hash names one build while the
+    # pointer is free to follow the next one, and the client BLOCKS an install on a mismatch. So
+    # this pairing does not merely go stale, it takes a working download and makes it refuse to
+    # install. Pin the url beside the hash, or publish no hash.
+    if sha256 and isinstance(source, dict) and is_moving(source):
+        error(f"{where}: publishes a sha256 but its download points at whatever the newest release "
+              f"happens to be. Pin the download to one release asset, or drop the sha256.")
 
     url, repo, pattern = source.get("url"), source.get("repo"), source.get("assetPattern")
 
@@ -127,7 +146,7 @@ def validate_mod_manifest(entry_id: str, url: str, manifest, target_game_version
         if dependency not in known_ids:
             error(f"{where}: depends on '{dependency}', which is not in the registry.")
 
-    validate_source(where, manifest.get("download"), required=True)
+    validate_source(where, manifest.get("download"), required=True, sha256=manifest.get("sha256"))
 
 
 def main() -> int:
@@ -151,9 +170,15 @@ def main() -> int:
     if not target_game_version:
         warn("registry has no 'targetGameVersion'; reviewers lose the compatibility cross-check.")
 
-    validate_source("loader", registry.get("loader", {}).get("source"), required=False)
+    # The loader may state its download either way, and the client falls back from `source` to the
+    # flat `downloadUrl`. Validate whichever one it will actually use, or a bare downloadUrl — the
+    # form this registry has always used — goes entirely unchecked.
     loader = registry.get("loader") or {}
-    if not loader.get("source") and not loader.get("downloadUrl"):
+    loader_source = loader.get("source") or (
+        {"url": loader["downloadUrl"]} if loader.get("downloadUrl") else None
+    )
+    validate_source("loader", loader_source, required=False, sha256=loader.get("sha256"))
+    if not loader_source:
         error("registry loader: needs a 'downloadUrl' or a 'source'.")
 
     mods = registry.get("mods")

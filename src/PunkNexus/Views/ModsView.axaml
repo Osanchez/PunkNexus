@@ -192,11 +192,15 @@
                         </Border>
                       </StackPanel>
 
+                      <!-- Author, category, and the mod's unique id. The id is what the catalog,
+                           a server's mod list and this client all key on, so when any two of them
+                           disagree it is the string you need to see. -->
                       <TextBlock FontSize="12" Classes="dim">
                         <TextBlock.Text>
-                          <MultiBinding StringFormat="{}{0} · {1}">
+                          <MultiBinding StringFormat="{}{0} · {1} · {2}">
                             <Binding Path="Author" />
                             <Binding Path="Category" />
+                            <Binding Path="Id" />
                           </MultiBinding>
                         </TextBlock.Text>
                       </TextBlock>

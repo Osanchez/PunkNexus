@@ -233,10 +233,69 @@ public sealed partial class ModRowViewModel : ViewModelBase
 
     // ------------------------------------------------------------ commands
 
+    /// <summary>
+    /// Everything an install of this mod will actually put on disk: the mod, plus any dependency
+    /// not already installed, following dependencies of dependencies. Ordered so a mod never
+    /// appears before something it needs.
+    ///
+    /// Resolved up front so it can be SHOWN up front. Installing Combat Tweaks Extended silently
+    /// pulled Mods Menu first and asked to verify it in its own dialog, so the first thing a
+    /// player saw after choosing one mod was a download prompt naming a different one they had
+    /// never heard of.
+    /// </summary>
+    private List<ModRowViewModel> ResolveInstallSet()
+    {
+        var ordered = new List<ModRowViewModel>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        void Walk(ModRowViewModel row)
+        {
+            if (!seen.Add(row.Id)) return;                 // also stops a dependency cycle dead
+            foreach (var id in row.Published?.Dependencies ?? new List<string>())
+            {
+                var dep = LookupMod?.Invoke(id);
+                if (dep is not null && !dep.IsInstalled) Walk(dep);
+            }
+            if (!row.IsInstalled || ReferenceEquals(row, this)) ordered.Add(row);
+        }
+
+        Walk(this);
+        return ordered;
+    }
+
     [RelayCommand]
     private async Task InstallAsync()
     {
         if (string.IsNullOrWhiteSpace(_session.Path) || Published is null) return;
+
+        // When more than this mod is involved, say so before anything downloads. One list, named
+        // and counted, beats discovering the extras one verification dialog at a time.
+        var set = ResolveInstallSet();
+        var extras = set.Where(m => !ReferenceEquals(m, this)).ToList();
+        if (extras.Count > 0)
+        {
+            var request = new DialogRequest
+            {
+                Title = $"{Name} needs {(extras.Count == 1 ? "another mod" : $"{extras.Count} other mods")}",
+                Message = $"Installing {Name} will also install "
+                          + $"{(extras.Count == 1 ? "the mod" : "the mods")} it depends on. "
+                          + "Each one is verified before anything is written.",
+                Kind = DialogKind.Info,
+                Details = set.Select(m => new DialogDetail(
+                    ReferenceEquals(m, this)
+                        ? $"{m.Name} ({m.Id}) — the mod you chose"
+                        : $"{m.Name} ({m.Id}) — required by {Name}",
+                    null)).ToList(),
+                AcceptText = $"Install all {set.Count}",
+                DeclineText = "Cancel",
+            };
+
+            if (!await _services.Dialogs.ShowAsync(request).ConfigureAwait(true))
+            {
+                Log.Info($"User declined installing {Name} with its {extras.Count} dependency(ies).");
+                return;
+            }
+        }
 
         Error = null;
         IsBusy = true;

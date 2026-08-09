@@ -86,7 +86,7 @@
 
     <!-- ===================================================== modal overlay -->
     <!-- Above every page, including setup: the disclaimer has to gate the whole app. -->
-    <Border IsVisible="{Binding Dialogs.IsOpen}" Background="#D6000000">
+    <Border Name="DialogOverlay" IsVisible="{Binding Dialogs.IsOpen}" Background="#D6000000">
       <Border Classes="card" MaxWidth="580" Padding="0"
               HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24">
         <StackPanel>

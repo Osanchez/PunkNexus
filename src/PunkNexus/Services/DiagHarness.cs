@@ -202,6 +202,19 @@ public sealed class DiagHarness
         // list. Nothing about that is visible from the outside -- which is precisely why the
         // harness must not lie about what is on screen.
         var all = Interactive().Where(c => c.IsEffectivelyVisible && c.IsEnabled).ToList();
+
+        // A modal is showing? Then it owns every click. Both the dialog and the rows behind it
+        // have buttons reading "Install", and tree order put a ROW first -- so accepting a
+        // verification prompt actually started installing some unrelated mod further down the
+        // list, while the prompt sat there unanswered. A person cannot make that mistake, because
+        // the overlay physically blocks the rows; the harness has to be told.
+        var overlay = _window.GetVisualDescendants().OfType<Control>()
+            .FirstOrDefault(c => c.Name == "DialogOverlay" && c.IsEffectivelyVisible);
+        if (overlay is not null)
+        {
+            var inDialog = all.Where(c => c.GetVisualAncestors().Contains(overlay)).ToList();
+            if (inDialog.Count > 0) all = inDialog;
+        }
         return all.FirstOrDefault(c => string.Equals(IdOf(c), idOrText, StringComparison.OrdinalIgnoreCase))
             ?? all.FirstOrDefault(c => string.Equals(TextOf(c), idOrText, StringComparison.OrdinalIgnoreCase))
             ?? all.FirstOrDefault(c => TextOf(c).Contains(idOrText, StringComparison.OrdinalIgnoreCase))

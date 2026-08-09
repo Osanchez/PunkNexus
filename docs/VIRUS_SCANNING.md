@@ -115,20 +115,34 @@ The free tier allows **4 lookups/minute, 500/day, 15,500/month**.
 
 The per-minute figure is the pacing constraint. The tool sleeps to respect it rather than firing and
 retrying on 429s — a scheduled job has time, and a 429 halfway through leaves a catalog half
-scanned. A full pass over ~17 entries is therefore about 4–5 minutes of mostly waiting.
+scanned.
 
-The **monthly** figure governs how often the schedule may fire:
+Measured on the first two real runs:
+
+| Run | Requests | Wall time |
+|---|---|---|
+| Cold catalog, 17 artifacts, none known to VirusTotal | 81 | ~20 min |
+| Next run, nothing changed | 1 | ~1 min |
+
+An unchanged mod costs **zero** VirusTotal requests: the hash comparison happens before any API
+call, and needs only the download, which comes from GitHub. Steady state is free. The budget is
+only ever spent on the day a developer ships something:
 
 ```
-17 entries x 1 lookup x 30 days  =  ~510 lookups/month     against 15,500
+worst realistic day: all 16 mods release at once
+16 x (1 lookup + 1 upload + up to 8 polls)  =  ~160 requests    against 500/day
 ```
 
-Daily has two orders of magnitude of headroom. Hourly would be ~12,200 before counting uploads for
-new builds, and does not fit. **Redo that multiplication before changing the cron.**
+which fits, at about a 40-minute job. **Daily is chosen because a mod release is a daily-scale
+event, not because the quota forces it** — scanning more often would spend the same quota to learn
+the same thing and re-download every zip to do it. Redo that multiplication before changing the
+cron: what can bite is a release-day burst, not the steady state.
 
 Polling is bounded to 8 polls per uploaded file for the same reason: polls come out of the same
 budget, and one slow analysis left to run for a full five-minute timeout could spend the day's quota
-watching a single file.
+watching a single file. A file still queued when the polls run out is recorded as `queued`, and the
+**next** run resolves it with a single free hash lookup rather than uploading it again — which is
+exactly what happened to `PunkReviveItem` between the two runs above.
 
 ## Running out mid-run
 
@@ -146,6 +160,11 @@ This is the part to read before changing any UI.
 BepInEx mods are unsigned .NET assemblies whose entire purpose is to patch a running process.
 Behavior-based antivirus engines are built to catch exactly that. **A handful of detections out of
 ~70 engines is the ordinary result for honest work in this community.**
+
+On the first real pass of this catalog every mod came back **0 detections out of 66–67 engines** —
+so the risk did not materialize here, on this day, for these builds. That is a fact about one
+snapshot, not a property of the design. Antivirus signature sets change weekly, a new mod build is
+a new file with a new verdict, and the rules below cost nothing when everything is clean.
 
 A client that renders "4/70 detected" as a verdict would make this community's legitimate mods look
 like malware, and would do real harm to people who have given their work away for free. So:

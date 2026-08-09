@@ -10,10 +10,16 @@ name: Virus scan catalog
 # from the one in the stored report. An unchanged catalog therefore costs zero API quota.
 #
 # BUDGET, BEFORE YOU CHANGE THE CRON
-# The free VirusTotal tier allows 4 lookups/minute, 500/day and 15,500/month. In steady state an
-# unchanged mod costs one lookup, so a full daily pass is 17 x 30 = ~510 lookups/month against
-# 15,500 — comfortable. Hourly would be ~12,200 before counting uploads for new builds, and does
-# not fit. Redo that multiplication if you touch the schedule.
+# The free VirusTotal tier allows 4 lookups/minute, 500/day, 15,500/month. Measured on the first
+# two real runs: a cold catalog of 17 artifacts cost 81 requests and ~20 minutes; the next run,
+# with nothing changed, cost 1 request and ~1 minute. An unchanged mod costs nothing at all,
+# because the hash comparison happens before any API call.
+#
+# So the quota is only spent on release days. The worst realistic one — all 16 mods shipping at
+# once — is 16 x (1 lookup + 1 upload + up to 8 polls) = ~160 requests against 500/day, about a
+# 40-minute job at 4/minute. Daily is chosen because a mod release is a daily-scale event, not
+# because the quota demands it. If you touch the schedule, redo that multiplication: what can
+# bite is a release-day burst, not the steady state.
 on:
   schedule:
     - cron: '17 4 * * *'      # daily, off the hour so it is not queued behind everyone else's

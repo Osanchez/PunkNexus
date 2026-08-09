@@ -41,20 +41,25 @@ The free VirusTotal API allows 4 lookups/minute, 500/day and 15,500/month.
 
 The per-minute figure is the pacing constraint, and Pacer sleeps to respect it rather than firing
 and retrying on 429s — a scheduled job has time, and a 429 mid-run leaves half a catalog scanned.
-A full pass over ~17 entries is therefore roughly 4-5 minutes of mostly waiting.
 
-The MONTHLY figure is what governs how often the schedule may fire. A steady-state pass costs one
-lookup per entry, because a hash lookup is tried before any upload and unchanged mods are skipped
-before even that:
+What a run actually costs, measured on the first two real runs of this tool:
 
-    17 entries x 1 lookup x 30 days  ~=  510 lookups/month   against 15,500
+    cold catalog, 17 artifacts, none known to VT   81 requests, ~20 minutes
+    nothing changed since, 17 artifacts            1 request,  ~1 minute
 
-So daily is comfortable with two orders of magnitude of headroom. Hourly would be 24x that
-(~12,200) plus every first-sighting upload, which does not fit — if you change the cron in
-.github/workflows/virus-scan.yml, redo this multiplication first.
+An unchanged mod costs ZERO VirusTotal requests, because the hash comparison happens before any
+API call — it needs only the download, which comes from GitHub. So steady state is free, and the
+budget is only ever spent on the day a developer ships something:
 
-Only a hash VirusTotal has never seen costs more than one lookup: an upload, then polling until
-the analysis completes. That happens once per new mod build, not per run.
+    worst realistic day: all 16 mods release at once
+    16 x (1 lookup + 1 upload + up to 8 polls)  =  ~160 requests   against 500/day
+
+Which fits, with the per-minute pacing making it about a 40-minute job. Daily is therefore chosen
+because a mod release is a daily-scale event, not because the quota forces it — running more often
+would spend the same quota to learn the same thing, and re-download every zip to do it.
+
+If you change the cron in .github/workflows/virus-scan.yml, redo that multiplication: the number
+that can bite is a release-day burst, not the steady state.
 """
 
 from __future__ import annotations

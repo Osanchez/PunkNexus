@@ -199,6 +199,7 @@ public sealed class InstallService
         var size = new FileInfo(zipPath).Length;
         var failed = false;
         var unverified = false;
+        var checksumMismatch = false;
 
         // Hashed unconditionally, not only when a checksum was published: the scan report is filed
         // under the scanner's own hash of the file, so without this there is no way to say whether
@@ -216,6 +217,7 @@ public sealed class InstallService
             else
             {
                 failed = true;
+                checksumMismatch = true;
                 details.Add(new DialogDetail($"SHA-256 does not match. Expected {Short(expectedSha256!)}, got {Short(actual)}", false));
             }
         }
@@ -302,7 +304,10 @@ public sealed class InstallService
                 "This can mean a corrupted download or a file that has been altered."),
         };
 
-        return new DownloadReport(modName, asset.FileName, size, verdict, headline, message, details);
+        return new DownloadReport(modName, asset.FileName, size, verdict, headline, message, details)
+        {
+            ChecksumMismatch = checksumMismatch,
+        };
     }
 
     /// <summary>
@@ -361,16 +366,27 @@ public sealed class InstallService
     /// Shows the report and returns whether to proceed. A failed verification never installs,
     /// whatever the answer — and with no prompt wired up it still refuses.
     /// </summary>
+    /// <summary>
+    /// Shows the report and returns whether to proceed.
+    ///
+    /// A checksum mismatch is refused here, after the dialog rather than instead of it: the user
+    /// still gets told exactly what was found, they just are not offered a way past it. Doing the
+    /// refusal in the service and not in the UI is deliberate — the guarantee then holds for every
+    /// caller, including one that forgets to set <see cref="ConfirmDownload"/> at all.
+    /// </summary>
     private async Task<bool> ConfirmAsync(DownloadReport report)
     {
         var accepted = ConfirmDownload is null || await ConfirmDownload(report).ConfigureAwait(true);
 
-        // Logged at error level whether or not the user proceeds, so a mismatch always leaves a
-        // trace on disk. It is their call to make, but it must never be a silent one.
         if (report.ChecksumMismatch)
-            Log.Error($"CHECKSUM MISMATCH for {report.ModName}: {report.Headline} — "
+        {
+            // Always at error level, whether or not anyone was watching. A refused install is
+            // exactly the event someone reads the log to find afterwards.
+            Log.Error($"CHECKSUM MISMATCH for {report.ModName}: "
                       + string.Join("; ", report.Details.Where(d => d.Ok == false).Select(d => d.Text))
-                      + $" — user chose to {(accepted ? "INSTALL ANYWAY" : "cancel")}.");
+                      + " — install refused.");
+            return false;
+        }
 
         if (!accepted) Log.Info($"User declined to install {report.ModName} after verification.");
         return accepted;

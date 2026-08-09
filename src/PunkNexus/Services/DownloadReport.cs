@@ -26,19 +26,23 @@ public sealed record DownloadReport(
     IReadOnlyList<DialogDetail> Details)
 {
     /// <summary>
-    /// A mismatch is reported, not enforced. Worth being precise about what this check is and is
-    /// not: the checksum is published in the author's own manifest, in the same repository as the
-    /// release it describes, so it cannot defend against an author whose account is compromised --
-    /// whoever can swap the file can edit the checksum beside it. What it does catch is a download
-    /// corrupted in transit, and a third party replacing a release asset without being able to
-    /// edit the manifest.
+    /// The file did not match a checksum its author published.
     ///
-    /// That is a narrow enough guarantee that refusing outright was the wrong trade: it stranded
-    /// people on a mismatch they could not get past, for a signal that is often just a bad
-    /// download. So the dialog says plainly what was found and lets the player decide, and the
-    /// mismatch is logged either way.
+    /// This one is enforced: publishing a checksum is a promise about exactly which bytes the
+    /// author released, and a file that fails it is not the released file. Not publishing one is
+    /// no promise at all, and is only reported — so the block lands on a broken guarantee rather
+    /// than on the mods that never made one.
+    ///
+    /// Worth being precise about the guarantee's limits: the checksum lives in the author's own
+    /// manifest, in the same repository as the release, so it cannot defend against an author
+    /// whose account is compromised -- whoever can swap the file can edit the checksum beside it.
+    /// What it does catch is a download corrupted in transit, and a third party replacing a
+    /// release asset without being able to edit the manifest.
     /// </summary>
-    public bool ChecksumMismatch => Verdict == DownloadVerdict.Failed;
+    public bool ChecksumMismatch { get; init; }
+
+    /// <summary>Whether the install is refused outright rather than put to the user.</summary>
+    public bool Blocks => ChecksumMismatch;
 
     public DialogKind Kind => Verdict switch
     {

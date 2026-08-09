@@ -1,0 +1,43 @@
+# Static analysis for the client that touches a player's files.
+#
+# The interesting findings here are not memory bugs but path handling and process launching:
+# archive extraction writing outside its target, a URL built by string surgery, an argument reaching
+# Process.Start. CodeQL's security-extended queries cover exactly those, and every one of them has
+# already produced a real bug in this repo at least once.
+name: CodeQL
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly, so a newly published query finds old code without waiting for someone to push.
+    - cron: '17 4 * * 1'
+
+jobs:
+  analyze:
+    name: Analyze C#
+    runs-on: windows-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: csharp
+          queries: security-extended
+
+      # Explicit build: autobuild picks the wrong target often enough in a repo with tools/ beside
+      # the app, and a failed autobuild reports as "no results" rather than as a failure.
+      - run: dotnet build src/PunkNexus/PunkNexus.csproj -c Release --nologo
+
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:csharp"

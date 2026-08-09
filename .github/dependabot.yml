@@ -1,0 +1,25 @@
+# Dependency updates, proposed as PRs rather than applied.
+#
+# This client downloads and extracts archives onto a player's machine, so a known-vulnerable
+# transitive package is a real exposure and not just hygiene. Weekly is frequent enough to catch an
+# advisory while it still matters and rare enough that the PRs get read.
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: "/src/PunkNexus"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    ignore:
+      # PINNED ON PURPOSE — do not let a bot raise this.
+      #
+      # PUNK Nexus does not ship steam_api64.dll (Valve's binary is not ours to redistribute); it
+      # borrows the one in the player's game folder. That DLL is from an older SDK which does not
+      # export SteamInternal_SteamAPI_Init, so a wrapper newer than 20.2.0 throws
+      # EntryPointNotFoundException at startup and Steam browsing silently stops working. The
+      # wrapper version is dictated by the GAME's SDK, not by what is newest.
+      - dependency-name: "Steamworks.NET"
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly

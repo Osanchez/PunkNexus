@@ -33,6 +33,18 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      # Computed before the build, not after, because the version has to go INTO the binary. A
+      # client that reports 0.1.0 while releases are tagged v2026.08.09.17 cannot tell whether it
+      # is out of date -- the two are not comparable, so an updater has nothing to decide on.
+      - name: Compute version
+        id: ver
+        shell: pwsh
+        run: |
+          $version = "{0}.{1}" -f (Get-Date -Format 'yyyy.MM.dd'), '${{ github.run_number }}'
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "tag=v$version"    | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "building as $version"
+
       - name: Restore
         run: dotnet restore src/PunkNexus/PunkNexus.csproj
 
@@ -47,6 +59,9 @@ jobs:
           -p:PublishSingleFile=true
           -p:IncludeNativeLibrariesForSelfExtract=true
           -p:DebugType=none
+          -p:Version=${{ steps.ver.outputs.version }}
+          -p:AssemblyVersion=${{ steps.ver.outputs.version }}
+          -p:FileVersion=${{ steps.ver.outputs.version }}
           -o publish
 
       - name: Package
@@ -55,6 +70,12 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Compress-Archive -Path publish/PunkNexus.exe -DestinationPath dist/PunkNexus-win-x64.zip -Force
           Copy-Item publish/PunkNexus.exe dist/PunkNexus.exe -Force
+          # The updater refuses to install an exe whose hash it cannot confirm, so the release has
+          # to carry one. Same reasoning the client applies to every mod it installs; the updater
+          # replaces the client itself, which is the last place to make an exception.
+          $hash = (Get-FileHash dist/PunkNexus.exe -Algorithm SHA256).Hash.ToLower()
+          "$hash  PunkNexus.exe" | Out-File -FilePath dist/PunkNexus.exe.sha256 -Encoding ascii -NoNewline
+          Write-Host "sha256 $hash"
           Get-ChildItem dist | ForEach-Object {
             "{0}  {1:N1} MB" -f $_.Name, ($_.Length / 1MB)
           }
@@ -67,14 +88,6 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Compute version tag
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        id: ver
-        shell: pwsh
-        run: |
-          $tag = "v{0}.{1}" -f (Get-Date -Format 'yyyy.MM.dd'), '${{ github.run_number }}'
-          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-
       - name: Publish Release
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: softprops/action-gh-release@v2
@@ -83,6 +96,7 @@ jobs:
           name: PUNK Nexus ${{ steps.ver.outputs.tag }}
           files: |
             dist/PunkNexus.exe
+            dist/PunkNexus.exe.sha256
             dist/PunkNexus-win-x64.zip
           generate_release_notes: true
           append_body: true

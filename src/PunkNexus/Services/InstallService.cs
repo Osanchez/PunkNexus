@@ -463,6 +463,19 @@ public sealed class InstallService
             {
                 var full = Path.GetFullPath(Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar)));
                 if (!IsInside(root, full)) continue;   // never delete outside the game folder
+
+                // And never outside THIS MOD'S folder. Staying inside the game folder was not
+                // enough: a recorded path pointing into another mod's directory is exactly how
+                // uninstalling one mod deleted another's DLL. Extraction is now confined so no new
+                // record can say that, but state written by earlier versions still can, and it
+                // would fire on the next uninstall. Skip and say so rather than obey it.
+                var own = PluginFolderPath(gameRoot, pluginFolder);
+                if (!IsInside(own, full))
+                {
+                    Log.Warn($"Refusing to delete '{relative}' while removing {displayName}: "
+                             + "it is outside that mod's own folder.");
+                    continue;
+                }
                 TryDelete(full);
             }
         }

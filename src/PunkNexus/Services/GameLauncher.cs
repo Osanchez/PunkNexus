@@ -34,7 +34,27 @@ public sealed class GameLauncher
     }
 
     /// <summary>Steam's own convention — what the overlay passes, and what the mod has always read.</summary>
-    public static string ConnectLobbyArgs(string lobbyId) => $"+connect_lobby {lobbyId}";
+    public static string ConnectLobbyArgs(string lobbyId) => $"+connect_lobby {Safe(lobbyId)}";
+
+    /// <summary>
+    /// A join target must be ONE argv entry. The value comes from a catalog, which is remote data,
+    /// and it used to be interpolated straight into the command line -- so an entry whose address
+    /// contained a space could append arguments of its own choosing to the game. That is not merely
+    /// untidy: BepInEx takes --doorstop-target &lt;dll&gt; from the command line, which is a
+    /// code-loading switch. Anything with whitespace or a leading dash is refused outright rather
+    /// than escaped, because no legitimate host:port, SteamID64 or PMV- code contains either.
+    /// </summary>
+    private static string Safe(string target)
+    {
+        var value = (target ?? "").Trim();
+        if (value.Length == 0)
+            throw new InstallException("That server entry has no address to join.");
+        if (value.Any(char.IsWhiteSpace) || value.StartsWith('-') || value.StartsWith('+'))
+            throw new InstallException(
+                $"That server entry's join target is not a plain address: '{value}'. "
+                + "It was refused rather than passed to the game.");
+        return value;
+    }
 
     /// <summary>
     /// The mod's transport-agnostic join argument. Takes anything the in-game JOIN button takes —
@@ -42,7 +62,7 @@ public sealed class GameLauncher
     /// the transport from the target's shape. That is what lets a self-hosted UDP server be
     /// auto-joined without the player having to change their configured transport.
     /// </summary>
-    public static string ConnectArgs(string target) => $"+punkmv_connect {target}";
+    public static string ConnectArgs(string target) => $"+punkmv_connect {Safe(target)}";
 
     /// <summary>
     /// Starts the game. <paramref name="arguments"/> may be null for a plain launch.
@@ -64,7 +84,12 @@ public sealed class GameLauncher
             UseShellExecute = false,
         };
 
-        if (!string.IsNullOrWhiteSpace(arguments)) start.Arguments = arguments;
+        // ArgumentList, not a single Arguments string: the runtime quotes each entry, so a value
+        // can never split into several arguments no matter what it contains. Safe() above already
+        // refuses the shapes that would try; this makes the attempt harmless as well as rejected.
+        if (!string.IsNullOrWhiteSpace(arguments))
+            foreach (var part in arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                start.ArgumentList.Add(part);
 
         try
         {

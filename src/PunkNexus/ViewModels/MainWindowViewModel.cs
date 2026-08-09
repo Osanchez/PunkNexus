@@ -61,6 +61,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         };
         _swapWatch.Start();
 
+        // Before the player can do anything with a build we may be about to replace.
+        Dispatcher.UIThread.Post(() => _ = OfferUpdateAsync());
+
         Setup.Completed += OnSetupCompleted;
         SettingsPage.GameFolderChanged += () => _ = ReloadForSessionAsync();
         SettingsPage.SetupRequested += ReturnToSetup;
@@ -189,6 +192,72 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     }
 
     private readonly DispatcherTimer? _swapWatch;
+
+    /// <summary>
+    /// Offer the update once, at startup, and close if it is declined.
+    ///
+    /// Deliberately not a dismissible notice. This client decides what a player installs and judges
+    /// whether those downloads are what they claim; an old copy is missing whatever the newer one
+    /// learned about refusing bad ones. "Later" on that is a choice to keep running the version
+    /// with the known hole, so the two honest options are update or stop.
+    ///
+    /// A failed check is not a refusal to run: CheckAsync returns null when it cannot reach GitHub,
+    /// and being offline must never lock someone out of their own mod manager.
+    /// </summary>
+    private async Task OfferUpdateAsync()
+    {
+        var update = await _services.Updates.CheckAsync(CancellationToken.None).ConfigureAwait(true);
+        if (update is null) return;
+
+        var accepted = await _services.Dialogs.ShowAsync(new DialogRequest
+        {
+            Title = $"Update to {update.Version}",
+            Message = $"You are running {UpdateService.Current}. PUNK Nexus keeps itself current "
+                      + "because it decides what gets installed on your machine and checks that "
+                      + "those downloads are what they claim to be.",
+            Kind = DialogKind.Info,
+            Details = new List<DialogDetail>
+            {
+                new("The download is verified against the checksum published with the release", null),
+                new("PUNK Nexus restarts itself once the update is in place", null),
+                new("Declining closes PUNK Nexus — your mods and game are untouched either way", null),
+            },
+            AcceptText = "Update and restart",
+            DeclineText = "Close",
+        }).ConfigureAwait(true);
+
+        if (!accepted)
+        {
+            Log.Info($"User declined the update to {update.Version}; closing.");
+            Shutdown();
+            return;
+        }
+
+        try
+        {
+            await _services.Updates.ApplyAsync(update, null, CancellationToken.None).ConfigureAwait(true);
+            Shutdown();      // the swap script is waiting for this process to exit
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Updating to {update.Version} failed", ex);
+            await _services.Dialogs.ShowAsync(new DialogRequest
+            {
+                Title = "The update could not be applied",
+                Message = ex.Message,
+                Kind = DialogKind.Danger,
+                AcceptText = "Close",
+            }).ConfigureAwait(true);
+            Shutdown();
+        }
+    }
+
+    private static void Shutdown()
+    {
+        if (Avalonia.Application.Current?.ApplicationLifetime
+            is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+            desktop.Shutdown();
+    }
 
     private async Task ReloadForSessionAsync()
     {

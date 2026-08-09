@@ -17,6 +17,7 @@ public sealed class AppServices
     public DialogService Dialogs { get; }
     public SteamBrowser Steam { get; }
     public PlayService Play { get; }
+    public UpdateService Updates { get; }
     public GameLauncher Launcher { get; }
 
     public static string Version { get; } =
@@ -41,6 +42,7 @@ public sealed class AppServices
         Settings = new SettingsService();
         Settings.Load();
 
+        Updates = new UpdateService(Http);
         Manifests = new ManifestService(Http, Settings);
         ModManifests = new ModManifestService(Http);
         Resolver = new ReleaseResolver(Http);

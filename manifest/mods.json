@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "updatedUtc": "2026-08-08T00:00:00Z",
-  "targetGameVersion": "0.12.10",
+  "targetGameVersion": "0.12.11",
   "loader": {
     "name": "BepInEx",
     "version": "5.4.23.3",

@@ -274,7 +274,24 @@
       "detectedBy": [],
       "permalink": "https://www.virustotal.com/gui/file/7f4789d1bd9fc94804d215c12d62f5adf9d9a3bee022d0ede1968a4a9692609b",
       "reportPath": "reports/SellVaultItems.json"
+    },
+    {
+      "modId": "WeaponForge",
+      "modName": "Weapon Forge",
+      "sha256": "0a7b0546bbc01a1a3399482a738776869251e988274d7bf5333c0c625f5c85d4",
+      "fileName": "WeaponForge-v1.0.0.zip",
+      "sizeBytes": 184666,
+      "modVersion": "1.0.0",
+      "declaredMatches": true,
+      "scannedUtc": "2026-08-09T22:51:13Z",
+      "analyzedUtc": null,
+      "status": "queued",
+      "enginesTotal": 0,
+      "detections": 0,
+      "detectedBy": [],
+      "permalink": "https://www.virustotal.com/gui/file/0a7b0546bbc01a1a3399482a738776869251e988274d7bf5333c0c625f5c85d4",
+      "reportPath": "reports/WeaponForge.json"
     }
   ],
-  "updatedUtc": "2026-08-09T22:42:13Z"
+  "updatedUtc": "2026-08-09T22:51:13Z"
 }

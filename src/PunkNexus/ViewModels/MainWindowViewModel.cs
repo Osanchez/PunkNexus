@@ -34,7 +34,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         Setup = new SetupViewModel(services.Settings);
         Mods = new ModsViewModel(services, Session);
-        Servers = new ServersViewModel(services, Session);
+        Servers = new ServersViewModel(services, Session)
+        {
+            SwapChanged = () => { Mods.RefreshSwapState(); Mods.RefreshInstalledState(); },
+        };
         SettingsPage = new SettingsViewModel(services, Session);
 
         // The installer reports what it verified; the shell is what actually shows it.

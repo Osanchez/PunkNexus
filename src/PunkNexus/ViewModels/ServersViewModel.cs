@@ -52,6 +52,9 @@ public sealed partial class ServersViewModel : ViewModelBase
     [ObservableProperty] private bool _isPlayBusy;
     [ObservableProperty] private string? _playStatus;
 
+    /// <summary>Raised once a swap has been applied, so other tabs can reflect it.</summary>
+    public Action? SwapChanged { get; set; }
+
     public ServersViewModel(AppServices services, GameSession session)
     {
         _services = services;
@@ -199,6 +202,14 @@ public sealed partial class ServersViewModel : ViewModelBase
                     .ApplyAsync(_session.Path!, plan, server.Name, progress, CancellationToken.None)
                     .ConfigureAwait(true);
             }
+
+            // Tell the Mods tab a swap is now in force. Without this the "Your mods are set
+            // aside" banner -- and the Restore my mods button inside it -- never appeared while
+            // swapped: RefreshSwapState was only ever called after a RESTORE, so the one state
+            // that needs explaining was the one state never announced. A player whose mods had
+            // just been moved saw them listed as "Not installed" with no explanation and no way
+            // back except quitting the game.
+            SwapChanged?.Invoke();
 
             PlayStatus = "Starting PUNK…";
             _services.Launcher.Launch(_session.Path!, JoinArgsFor(server));

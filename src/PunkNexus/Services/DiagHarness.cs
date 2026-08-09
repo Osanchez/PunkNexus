@@ -176,7 +176,7 @@ public sealed class DiagHarness
             var text = TextOf(c);
             if (!string.IsNullOrEmpty(text) && text != IdOf(c)) sb.Append(" text='").Append(text).Append('\'');
             sb.Append(" enabled=").Append(c.IsEnabled)
-              .Append(" visible=").Append(c.IsVisible);
+              .Append(" visible=").Append(c.IsEffectivelyVisible);
             if (c is TabItem { IsSelected: true }) sb.Append(" SELECTED");
             sb.Append('\n');
             n++;
@@ -195,7 +195,13 @@ public sealed class DiagHarness
     private Control? Find(string idOrText)
     {
         if (string.IsNullOrWhiteSpace(idOrText)) return null;
-        var all = Interactive().Where(c => c.IsVisible && c.IsEnabled).ToList();
+        // IsEffectivelyVisible, not IsVisible. IsVisible is the control's OWN flag and stays true
+        // inside a hidden parent, so every off-screen tab's controls looked clickable. Both Mods
+        // and Servers have a "Refresh" button; matching on IsVisible found the Mods one while the
+        // Servers tab was showing, and clicking it reported success having refreshed the wrong
+        // list. Nothing about that is visible from the outside -- which is precisely why the
+        // harness must not lie about what is on screen.
+        var all = Interactive().Where(c => c.IsEffectivelyVisible && c.IsEnabled).ToList();
         return all.FirstOrDefault(c => string.Equals(IdOf(c), idOrText, StringComparison.OrdinalIgnoreCase))
             ?? all.FirstOrDefault(c => string.Equals(TextOf(c), idOrText, StringComparison.OrdinalIgnoreCase))
             ?? all.FirstOrDefault(c => TextOf(c).Contains(idOrText, StringComparison.OrdinalIgnoreCase));

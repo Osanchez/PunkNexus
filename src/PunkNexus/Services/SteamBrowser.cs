@@ -106,7 +106,18 @@ public sealed class SteamBrowser : IDisposable
                 _initialized = true;
                 Status = SteamStatus.Ready;
                 StatusDetail = null;
-                Log.Info("Steam initialized for lobby browsing.");
+
+                // Start measuring latency to Valve's relays NOW, rather than waiting for the first
+                // CheckPingDataUpToDate to notice it is missing.
+                //
+                // Without this the ping column stayed "—" indefinitely: measurement needs a round
+                // of probes, and a browser that only ever polls "is it ready yet" never gives it a
+                // reason to begin. The game does not hit this because it opens SteamNetworkingSockets
+                // for actual traffic, which brings the relay network up as a side effect -- a
+                // browse-only process has no such side effect and has to ask.
+                SteamNetworkingUtils.InitRelayNetworkAccess();
+
+                Log.Info("Steam initialized for lobby browsing; relay measurement started.");
                 return true;
             }
             catch (Exception ex)

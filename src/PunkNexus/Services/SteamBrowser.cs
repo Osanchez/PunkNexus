@@ -64,14 +64,27 @@ public sealed class SteamBrowser : IDisposable
                 return false;
             }
 
-            var native = Path.Combine(gameRoot, "steam_api64.dll");
-            if (!File.Exists(native))
+            // Unity ships native plugins under Punk_Data\Plugins\<arch>\, NOT beside the exe.
+            // Looking only in the game root meant this never found the library on a real install,
+            // so the Servers tab reported "Steam is not available" on every machine while a public
+            // lobby was sitting there unlisted. The root is still checked, and first: a hand-copied
+            // DLL next to the exe is a thing people do, and Windows itself would prefer it.
+            var candidates = new[]
+            {
+                Path.Combine(gameRoot, "steam_api64.dll"),
+                Path.Combine(gameRoot, "Punk_Data", "Plugins", "x86_64", "steam_api64.dll"),
+                Path.Combine(gameRoot, "Punk_Data", "Plugins", "steam_api64.dll"),
+            };
+            var native = candidates.FirstOrDefault(File.Exists);
+            if (native is null)
             {
                 Status = SteamStatus.NoLibrary;
-                StatusDetail = $"steam_api64.dll was not found in {gameRoot}.";
+                StatusDetail = $"steam_api64.dll was not found under {gameRoot} "
+                             + @"(looked beside Punk.exe and in Punk_Data\Plugins\x86_64).";
                 Log.Warn(StatusDetail);
                 return false;
             }
+            Log.Info($"Steam native library: {native}");
 
             try
             {

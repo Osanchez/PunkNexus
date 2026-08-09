@@ -12,8 +12,23 @@ public static class Log
     public static void Warn(string message) => Write("WARN ", message);
     public static void Error(string message) => Write("ERROR", message);
 
-    public static void Error(string message, Exception ex) =>
-        Write("ERROR", $"{message}: {ex.GetType().Name}: {ex.Message}");
+    /// <summary>
+    /// Log a failure with enough to diagnose it from the file alone.
+    ///
+    /// Type and message by themselves are often useless: an EntryPointNotFoundException from a
+    /// P/Invoke says only "Entry point was not found", and the name of the function it wanted is
+    /// in the stack trace. A user's log is usually the only evidence anyone gets, so it carries
+    /// the trace and any inner exceptions.
+    /// </summary>
+    public static void Error(string message, Exception ex)
+    {
+        var text = $"{message}: {ex.GetType().Name}: {ex.Message}";
+        for (var inner = ex.InnerException; inner is not null; inner = inner.InnerException)
+            text += Environment.NewLine + $"  caused by {inner.GetType().Name}: {inner.Message}";
+        if (!string.IsNullOrWhiteSpace(ex.StackTrace))
+            text += Environment.NewLine + ex.StackTrace;
+        Write("ERROR", text);
+    }
 
     private static void Write(string level, string message)
     {

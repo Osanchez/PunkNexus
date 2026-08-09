@@ -94,15 +94,23 @@ public sealed partial class ModRowViewModel : ViewModelBase
         !string.Equals(Installed.GameVersion, _session.Build.Version, StringComparison.OrdinalIgnoreCase);
 
     public bool HasError => !string.IsNullOrWhiteSpace(Error);
-    public bool ShowCompatibilityBadge => Compatibility?.IsWarning == true && !IsResolving;
+    /// <summary>
+    /// Show the badge whenever the mod declares a version, matching or not. It is a fact about the
+    /// mod, like its version number -- not an alarm. Repeating the same warning as a badge, a red
+    /// paragraph, a button subtitle and a page banner made an ordinary state look like four
+    /// problems.
+    /// </summary>
+    public bool ShowCompatibilityBadge => !IsResolving && Compatibility is not null;
 
     public string CompatibilityText => Compatibility?.Summary ?? "";
 
+    /// <summary>Which game build the author says this was made for. "Game 0.12.10".</summary>
     public string CompatibilityBadge => Compatibility?.State switch
     {
-        CompatibilityState.Incompatible => "unconfirmed",
+        CompatibilityState.Incompatible => $"Game {Compatibility.ModGameVersion}",
         CompatibilityState.Undeclared => "no version declared",
         CompatibilityState.UnknownGame => "not checked",
+        CompatibilityState.Compatible => $"Game {Compatibility.ModGameVersion}",
         _ => "",
     };
 
@@ -114,7 +122,6 @@ public sealed partial class ModRowViewModel : ViewModelBase
     public string StatusLabel =>
         IsResolving ? "Checking…"
         : IsUnavailable ? "Manifest unavailable"
-        : !IsInstalled && IsUncertain ? "Compatibility unconfirmed"
         : !IsInstalled ? "Not installed"
         : InstalledIsStale ? "Installed — game has moved on"
         : HasUpdate ? $"Update available — v{PublishedVersion}"

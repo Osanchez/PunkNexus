@@ -208,10 +208,17 @@ public sealed class DiagHarness
 
         switch (c)
         {
-            // Again: CheckBox and TabItem before Button, or they never match.
+            // Again: the derived types before Button, or they never match.
             case CheckBox cb:
                 cb.IsChecked = !(cb.IsChecked ?? false);
                 return $"click: '{IdOf(c)}' -> {cb.IsChecked}";
+            case RadioButton rb:
+                // Set IsChecked rather than raising Click. This app's tab strip is RadioButtons
+                // bound to a selection property, and a synthetic Click leaves that binding
+                // untouched -- the command reported success while the view never changed, which is
+                // the worst kind of test tooling.
+                rb.IsChecked = true;
+                return $"click: '{IdOf(c)}' selected";
             case Button b:
                 // Prefer the bound command over a synthetic pointer event: it runs exactly what the
                 // button would run, and cannot land on whatever happens to overlap it on screen.

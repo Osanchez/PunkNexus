@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "modId": "PunkPlayerHighlight",
+  "scans": [
+    {
+      "sha256": "462f04c6f0111ecf93dbdeecf85e6257d16f0559157e909feff160c7df1030fb",
+      "fileName": "PunkPlayerHighlight-v2.0.0.zip",
+      "sizeBytes": 8539,
+      "downloadUrl": "https://github.com/Osanchez/PunkMods/releases/download/v2026.08.09.19/PunkPlayerHighlight-v2.0.0.zip",
+      "modVersion": "2.0.0",
+      "declaredSha256": "462f04c6f0111ecf93dbdeecf85e6257d16f0559157e909feff160c7df1030fb",
+      "declaredMatches": true,
+      "scannedUtc": "2026-08-09T16:49:40Z",
+      "permalink": "https://www.virustotal.com/gui/file/462f04c6f0111ecf93dbdeecf85e6257d16f0559157e909feff160c7df1030fb",
+      "enginesTotal": 67,
+      "detections": 0,
+      "malicious": 0,
+      "suspicious": 0,
+      "detectedBy": [],
+      "status": "completed",
+      "analyzedUtc": "2026-08-09T16:49:40Z",
+      "analysisId": "MDA5MzgyYjhjYTkzNTI3YjlmMzQ5YjFjNWFlNDZiYWU6MTc4NjI5NDEyMA==",
+      "source": "upload"
+    }
+  ],
+  "modName": "Player Highlight"
+}

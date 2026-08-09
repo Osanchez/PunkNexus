@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "modId": "PunkScoreboard",
+  "scans": [
+    {
+      "sha256": "e07e075b312bc554635d8e1e76a324dae35f72c7bb5295772212748c16d78799",
+      "fileName": "PunkScoreboard-v1.1.0.zip",
+      "sizeBytes": 10623,
+      "downloadUrl": "https://github.com/Osanchez/PunkMods/releases/download/v2026.08.09.19/PunkScoreboard-v1.1.0.zip",
+      "modVersion": "1.1.0",
+      "declaredSha256": "e07e075b312bc554635d8e1e76a324dae35f72c7bb5295772212748c16d78799",
+      "declaredMatches": true,
+      "scannedUtc": "2026-08-09T16:48:39Z",
+      "permalink": "https://www.virustotal.com/gui/file/e07e075b312bc554635d8e1e76a324dae35f72c7bb5295772212748c16d78799",
+      "enginesTotal": 67,
+      "detections": 0,
+      "malicious": 0,
+      "suspicious": 0,
+      "detectedBy": [],
+      "status": "completed",
+      "analyzedUtc": "2026-08-09T16:48:39Z",
+      "analysisId": "OWE3MWNlM2ZmNWFiMzVhMTUxZTMyNGI3MzcwNmRlMjM6MTc4NjI5NDA2MA==",
+      "source": "upload"
+    }
+  ],
+  "modName": "Scoreboard"
+}

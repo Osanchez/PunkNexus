@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "modId": "PunkDebugKey",
+  "scans": [
+    {
+      "sha256": "70784c9102990d03be30e41707d6cfecafaaf625356be5f9d81dd134770c39d5",
+      "fileName": "PunkDebugKey-v2.1.0.zip",
+      "sizeBytes": 5624,
+      "downloadUrl": "https://github.com/Osanchez/PunkMods/releases/download/v2026.08.09.19/PunkDebugKey-v2.1.0.zip",
+      "modVersion": "2.1.0",
+      "declaredSha256": "70784c9102990d03be30e41707d6cfecafaaf625356be5f9d81dd134770c39d5",
+      "declaredMatches": true,
+      "scannedUtc": "2026-08-09T16:56:43Z",
+      "permalink": "https://www.virustotal.com/gui/file/70784c9102990d03be30e41707d6cfecafaaf625356be5f9d81dd134770c39d5",
+      "enginesTotal": 67,
+      "detections": 0,
+      "malicious": 0,
+      "suspicious": 0,
+      "detectedBy": [],
+      "status": "completed",
+      "analyzedUtc": "2026-08-09T16:56:43Z",
+      "analysisId": "OGFmMTQ0ZGU1ZGE5NmFhOWYyMDQ5Yjc4NDQ4MmM1M2Q6MTc4NjI5NDU0NQ==",
+      "source": "upload"
+    }
+  ],
+  "modName": "Debug Menu Key"
+}

@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "modId": "PunkModsMenu",
+  "scans": [
+    {
+      "sha256": "8e365628076e7ddc4f037b0e74754cd9492855cc450b5dec8aa7dd85f66fab92",
+      "fileName": "PunkModsMenu-v2.1.0.zip",
+      "sizeBytes": 17184,
+      "downloadUrl": "https://github.com/Osanchez/PunkMods/releases/download/v2026.08.09.19/PunkModsMenu-v2.1.0.zip",
+      "modVersion": "2.1.0",
+      "declaredSha256": "8e365628076e7ddc4f037b0e74754cd9492855cc450b5dec8aa7dd85f66fab92",
+      "declaredMatches": true,
+      "scannedUtc": "2026-08-09T16:39:35Z",
+      "permalink": "https://www.virustotal.com/gui/file/8e365628076e7ddc4f037b0e74754cd9492855cc450b5dec8aa7dd85f66fab92",
+      "enginesTotal": 67,
+      "detections": 0,
+      "malicious": 0,
+      "suspicious": 0,
+      "detectedBy": [],
+      "status": "completed",
+      "analyzedUtc": "2026-08-09T16:39:35Z",
+      "analysisId": "OWIxYjFhMzY3ZDg1MDBiYmE5ZDg4MTRlNzNkYWU1ZTg6MTc4NjI5MzUxNQ==",
+      "source": "upload"
+    }
+  ],
+  "modName": "Mods Menu"
+}

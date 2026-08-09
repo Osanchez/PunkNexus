@@ -37,7 +37,7 @@ on:
         default: ''
 
 permissions:
-  contents: write              # the reports are committed back to main
+  contents: write              # the reports are committed back to the branch that ran
 
 # Two runs writing reports/ would race each other's commits. The schedule and a manifest push can
 # easily overlap, so they queue instead of cancelling — a cancelled run wastes VirusTotal quota

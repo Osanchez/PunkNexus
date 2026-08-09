@@ -221,6 +221,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 new("The download is verified against the checksum published with the release", null),
                 new("PUNK Nexus restarts itself once the update is in place", null),
                 new("Declining closes PUNK Nexus — your mods and game are untouched either way", null),
+                // Said before it happens, not after. The binary is unsigned, so Windows may show
+                // "Windows protected your PC" on the replacement. A security warning nobody warned
+                // you about reads as evidence something is wrong; the same warning, predicted, with
+                // a checksum you can check, reads as what it is.
+                new("Windows may warn that the new file is unrecognised — it is unsigned. Its "
+                    + "checksum is verified against the one published with the release before it "
+                    + "is installed.", null),
             },
             AcceptText = "Update and restart",
             DeclineText = "Close",

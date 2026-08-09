@@ -71,7 +71,7 @@ key simply stops appearing in the browser, with nothing anywhere to warn you.
 | `region` | opt-in only | Free-text label. Informational — nothing verifies it. |
 | `maxp` | opt-in only | Player slots. |
 | `np` | opt-in only | Occupied player slots, counted by the host. |
-| `mods` | opt-in only | Comma-separated BepInEx plugin GUIDs, capped at 12. |
+| `mods` | opt-in only | Comma-separated catalog ids (GUID fallback), capped at 12. See Part 3. |
 | `pw` | *nobody, yet* | Reserved. PunkMultiverse has no password feature, so every row reads as open. |
 
 Definitions live in `src/PunkNexus/Services/SteamLobbyKeys.cs` here and in

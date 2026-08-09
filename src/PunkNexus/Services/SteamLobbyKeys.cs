@@ -30,7 +30,7 @@ public static class SteamLobbyKeys
     /// </summary>
     public const string Players = "np";
 
-    public const string Mods = "mods";           // comma-separated plugin GUIDs, kept short on purpose
+    public const string Mods = "mods";           // comma-separated catalog ids, kept short on purpose
 
     /// <summary>
     /// "1" when a password is required. Reserved: PunkMultiverse has no password feature, so this

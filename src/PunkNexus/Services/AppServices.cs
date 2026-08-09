@@ -15,6 +15,7 @@ public sealed class AppServices
     public InstallService Installer { get; }
     public IconCache Icons { get; }
     public DialogService Dialogs { get; }
+    public SteamBrowser Steam { get; }
 
     public static string Version { get; } =
         Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.0.0";
@@ -45,6 +46,7 @@ public sealed class AppServices
         Installer = new InstallService(Http, Resolver, State);
         Icons = new IconCache(Http);
         Dialogs = new DialogService();
+        Steam = new SteamBrowser();
     }
 
     public static AppServices Create() => new();

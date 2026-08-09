@@ -39,6 +39,9 @@
     <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.19" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />
+    <!-- Managed bindings only. The native steam_api64.dll is Valve's to distribute, not ours, so
+         SteamBrowser loads the one that ships with the player's game install instead. -->
+    <PackageReference Include="Steamworks.NET" Version="2024.8.0" />
   </ItemGroup>
 
 </Project>

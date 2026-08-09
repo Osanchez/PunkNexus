@@ -129,17 +129,38 @@ public sealed class ServersManifest
     [JsonPropertyName("servers")] public List<ServerEntry> Servers { get; set; } = new();
 }
 
+/// <summary>Where a server row came from. Drives the Steam / Self-hosted filter.</summary>
+public enum ServerSource
+{
+    /// <summary>Discovered through Steam's lobby list. Live by construction.</summary>
+    Steam,
+
+    /// <summary>A dedicated UDP server from the published list. See docs/SERVER_LIST.md.</summary>
+    Dedicated,
+}
+
 public sealed class ServerEntry
 {
     [JsonPropertyName("id")] public string? Id { get; set; }
+
+    [JsonPropertyName("source")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public ServerSource Source { get; set; } = ServerSource.Dedicated;
+
     [JsonPropertyName("name")] public string Name { get; set; } = "";
+
+    // A row carries whichever address its transport uses: dedicated servers an address:port that
+    // doubles as the join code, Steam sessions a SteamID64 with no routable address at all.
     [JsonPropertyName("address")] public string? Address { get; set; }
     [JsonPropertyName("port")] public int Port { get; set; }
+    [JsonPropertyName("steamId")] public string? SteamId { get; set; }
+
     [JsonPropertyName("players")] public int Players { get; set; }
     [JsonPropertyName("maxPlayers")] public int MaxPlayers { get; set; }
     [JsonPropertyName("gameMode")] public string? GameMode { get; set; }
     [JsonPropertyName("region")] public string? Region { get; set; }
     [JsonPropertyName("version")] public string? Version { get; set; }
+    [JsonPropertyName("gameVersion")] public string? GameVersion { get; set; }
     [JsonPropertyName("passworded")] public bool Passworded { get; set; }
 
     /// <summary>Mod ids the server runs; the client filters on these.</summary>
@@ -147,5 +168,13 @@ public sealed class ServerEntry
 
     [JsonPropertyName("lastSeenUtc")] public string? LastSeenUtc { get; set; }
 
-    public string Endpoint => string.IsNullOrWhiteSpace(Address) ? "" : $"{Address}:{Port}";
+    public bool IsSteam => Source == ServerSource.Steam;
+
+    /// <summary>What the user sees in the address column, and for UDP what they can type to join.</summary>
+    public string Endpoint =>
+        !string.IsNullOrWhiteSpace(Address) ? $"{Address}:{Port}"
+        : !string.IsNullOrWhiteSpace(SteamId) ? "Steam"
+        : "";
+
+    public string SourceLabel => Source == ServerSource.Steam ? "Steam" : "Self-hosted";
 }

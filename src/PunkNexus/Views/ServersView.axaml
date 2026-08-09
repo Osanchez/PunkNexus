@@ -28,7 +28,7 @@
           <StackPanel Spacing="12">
             <TextBlock Classes="label" Text="FILTERS" />
 
-            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto" RowSpacing="12">
+            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto,Auto" RowSpacing="12">
               <StackPanel Grid.Row="0" Grid.Column="0" Spacing="5">
                 <TextBlock Text="Server name" Classes="dim" />
                 <TextBox Text="{Binding NameFilter, Mode=TwoWay}" Watermark="Any name" />
@@ -58,7 +58,14 @@
                           HorizontalAlignment="Stretch" />
               </StackPanel>
 
-              <StackPanel Grid.Row="1" Grid.Column="2" Spacing="7" VerticalAlignment="Bottom">
+              <StackPanel Grid.Row="1" Grid.Column="2" Spacing="5">
+                <TextBlock Text="Source" Classes="dim" />
+                <ComboBox ItemsSource="{Binding Sources}"
+                          SelectedItem="{Binding SelectedSource, Mode=TwoWay}"
+                          HorizontalAlignment="Stretch" />
+              </StackPanel>
+
+              <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" Spacing="16">
                 <CheckBox Content="Hide empty" IsChecked="{Binding HideEmpty, Mode=TwoWay}" />
                 <CheckBox Content="Hide full" IsChecked="{Binding HideFull, Mode=TwoWay}" />
               </StackPanel>
@@ -80,15 +87,19 @@
           <TextBlock Text="{Binding Notice}" FontSize="13" Foreground="{DynamicResource Warning}" />
         </Border>
 
+        <Border Classes="row" Padding="14,11" IsVisible="{Binding HasSteamNotice}">
+          <TextBlock Text="{Binding SteamNotice}" FontSize="13" Foreground="{DynamicResource Warning}" />
+        </Border>
+
         <!-- Deliberate empty state: the feed exists and is reachable, there is just nothing on it
              yet. Says so plainly rather than looking like a failure. -->
         <Border Classes="card" IsVisible="{Binding NothingPublished}">
           <StackPanel Spacing="10">
             <TextBlock Classes="h2" Text="No servers published yet" />
             <TextBlock Classes="muted"
-                       Text="The server list is fed by a published document that game servers heartbeat into. That relay is not running yet, so this list is empty by design — the filters above are live and will work the moment servers start reporting." />
+                       Text="Steam sessions appear here as soon as someone hosts one with the server browser enabled — a Steam lobby exists only while its host does, so this list is never stale." />
             <TextBlock Classes="dim"
-                       Text="Nothing here contacts a game server directly: the client only ever reads the published list." />
+                       Text="Self-hosted UDP servers are not listed yet; that path is specified in docs/SERVER_LIST.md and not built. Nothing here contacts a game server to build the list." />
           </StackPanel>
         </Border>
 
@@ -100,13 +111,13 @@
         </Border>
 
         <!-- header row -->
-        <Grid ColumnDefinitions="*,200,90,140,110" ColumnSpacing="12" Margin="14,4,14,0"
+        <Grid ColumnDefinitions="*,190,90,130,110" ColumnSpacing="12" Margin="14,4,14,0"
               IsVisible="{Binding HasResults}">
           <TextBlock Grid.Column="0" Classes="label" Text="NAME" />
           <TextBlock Grid.Column="1" Classes="label" Text="ADDRESS" />
           <TextBlock Grid.Column="2" Classes="label" Text="PLAYERS" />
           <TextBlock Grid.Column="3" Classes="label" Text="MODE" />
-          <TextBlock Grid.Column="4" Classes="label" Text="REGION" />
+          <TextBlock Grid.Column="4" Classes="label" Text="SOURCE" />
         </Grid>
 
         <ItemsControl ItemsSource="{Binding Visible}">
@@ -119,7 +130,7 @@
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="models:ServerEntry">
               <Border Classes="row">
-                <Grid ColumnDefinitions="*,200,90,140,110" ColumnSpacing="12">
+                <Grid ColumnDefinitions="*,190,90,130,110" ColumnSpacing="12">
                   <StackPanel Grid.Column="0" Spacing="3">
                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14" />
                     <ItemsControl ItemsSource="{Binding Mods}">
@@ -150,8 +161,10 @@
                   </TextBlock>
                   <TextBlock Grid.Column="3" Text="{Binding GameMode}" Classes="muted"
                              FontSize="13" VerticalAlignment="Center" />
-                  <TextBlock Grid.Column="4" Text="{Binding Region}" Classes="muted"
-                             FontSize="13" VerticalAlignment="Center" />
+                  <Border Grid.Column="4" Classes="pill" VerticalAlignment="Center"
+                          HorizontalAlignment="Left">
+                    <TextBlock Text="{Binding SourceLabel}" />
+                  </Border>
                 </Grid>
               </Border>
             </DataTemplate>

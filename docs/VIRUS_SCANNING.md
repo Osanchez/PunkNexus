@@ -54,7 +54,7 @@ GET per mod to render a badge would be a poor trade.
 ```jsonc
 {
   "schemaVersion": 1,
-  "generatedUtc": "2026-08-09T16:41:02Z",
+  "updatedUtc": "2026-08-09T16:41:02Z",   // stamped only when the content changes
   "complete": true,              // false when a run ran out of quota before finishing
   "unreached": [],               // ids that needed a scan this run and did not get one
   "scans": [

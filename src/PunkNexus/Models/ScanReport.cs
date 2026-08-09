@@ -15,7 +15,8 @@ namespace PunkNexus.Models;
 public sealed class ScanIndex
 {
     [JsonPropertyName("schemaVersion")] public int SchemaVersion { get; set; } = 1;
-    [JsonPropertyName("generatedUtc")] public string? GeneratedUtc { get; set; }
+    /// <summary>When the index last changed — not when the job last ran. See tools/virus-scan.py.</summary>
+    [JsonPropertyName("updatedUtc")] public string? UpdatedUtc { get; set; }
     [JsonPropertyName("scans")] public List<ScanRecord> Scans { get; set; } = new();
 
     /// <summary>

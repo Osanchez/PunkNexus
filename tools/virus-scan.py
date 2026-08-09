@@ -436,13 +436,44 @@ def build_index(mod_ids: list[str]) -> dict:
     # `complete` and `unreached` exist so a run cut short by the quota cannot be mistaken for a
     # clean sweep. The index itself is still written and still accurate — every entry describes a
     # report that really exists — but it says plainly which entries this run failed to get to.
+    #
+    # No timestamp here. `updatedUtc` is stamped by write_index only when something actually
+    # changed, so a schedule that finds nothing new writes identical bytes and commits nothing.
     return {
         "schemaVersion": SCHEMA_VERSION,
-        "generatedUtc": now_utc(),
         "complete": not unreached,
         "unreached": sorted(unreached),
         "scans": sorted(scans, key=lambda s: s["modId"].lower()),
     }
+
+
+def write_index(index: dict) -> bool:
+    """Write reports/index.json, preserving its timestamp when nothing substantive changed.
+
+    Returns whether the content changed. Without this the daily schedule would commit a one-line
+    timestamp bump every night forever, and `updatedUtc` would mean "when the job last ran" while
+    reading as "when this changed" — churn and a small lie for the price of one.
+    """
+    path = REPORTS_DIR / "index.json"
+
+    previous = None
+    if path.exists():
+        try:
+            previous = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            pass
+
+    stamp = now_utc()
+    if previous is not None:
+        before = {k: v for k, v in previous.items() if k != "updatedUtc"}
+        if before == index:
+            # Same content: keep the old stamp so the file is byte-identical.
+            stamp = previous.get("updatedUtc") or stamp
+            write_json(path, {**index, "updatedUtc": stamp})
+            return False
+
+    write_json(path, {**index, "updatedUtc": stamp})
+    return True
 
 
 # ----------------------------------------------------------------- the run
@@ -625,8 +656,9 @@ def main() -> int:
         # Built from every catalog entry, not just the ones this run touched: --only must not
         # quietly drop every other mod's report out of the file the client reads.
         all_ids = [t[0] for t in targets(registry, None)]
-        write_json(REPORTS_DIR / "index.json", build_index(all_ids))
-        print(f"\nindex: reports/index.json ({len(all_ids)} artifact(s) considered)")
+        changed_index = write_index(build_index(all_ids))
+        print(f"\nindex: reports/index.json ({len(all_ids)} artifact(s) considered)"
+              f"{'' if changed_index else ' — unchanged'}")
 
     print(f"\n{scanned} scanned, {skipped} unchanged, {planned} needed a scan. "
           f"{pacer.used} VirusTotal request(s).")

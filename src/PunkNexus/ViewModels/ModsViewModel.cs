@@ -62,8 +62,8 @@ public sealed partial class ModsViewModel : ViewModelBase
     public bool HasUncertain => UncertainCount > 0;
 
     public string GameVersionLabel => _session.Build.HasVersion
-        ? $"Game {_session.Build.Version}"
-        : "Game version unknown";
+        ? $"Current Game Version {_session.Build.Version}"
+        : "Current game version unknown";
 
     public bool GameVersionUnknown => !_session.Build.HasVersion;
 

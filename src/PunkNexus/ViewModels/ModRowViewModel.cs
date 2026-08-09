@@ -75,6 +75,9 @@ public sealed partial class ModRowViewModel : ViewModelBase
     /// </summary>
     public bool IsUncertain => Compatibility?.IsWarning == true;
 
+    /// <summary>The mod declares exactly the installed game version. Drives the green badge.</summary>
+    public bool IsConfirmed => Compatibility?.State == CompatibilityState.Compatible;
+
     /// <summary>
     /// Nothing about compatibility appears here on purpose. The only real blockers are a missing
     /// manifest (there is no file to fetch) and an operation already running.
@@ -334,6 +337,7 @@ public sealed partial class ModRowViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsUnavailable));
         OnPropertyChanged(nameof(HasUpdate));
         OnPropertyChanged(nameof(IsUncertain));
+        OnPropertyChanged(nameof(IsConfirmed));
         OnPropertyChanged(nameof(CanInstall));
         OnPropertyChanged(nameof(InstalledIsStale));
         OnPropertyChanged(nameof(ShowCompatibilityBadge));

@@ -169,16 +169,17 @@
                              styling: it is a fact about the mod, not a verdict on it. The tooltip
                              carries the detail for anyone who wants it. -->
                         <Border Classes="pill" VerticalAlignment="Center"
+                                Classes.ok="{Binding IsConfirmed}"
+                                Classes.warn="{Binding IsUncertain}"
                                 IsVisible="{Binding ShowCompatibilityBadge}"
                                 ToolTip.Tip="{Binding CompatibilityText}">
                           <TextBlock Text="{Binding CompatibilityBadge}" />
                         </Border>
 
-                        <Border Classes="pill" VerticalAlignment="Center"
-                                Background="#3A2A0F"
+                        <Border Classes="pill warn" VerticalAlignment="Center"
                                 IsVisible="{Binding InstalledIsStale}"
-                                ToolTip.Tip="The game updated after this was installed. It may no longer work until its author publishes a new build.">
-                          <TextBlock Text="outdated" Foreground="{DynamicResource Warning}" />
+                                ToolTip.Tip="The version of this mod you have installed does not officially confirm it supports the game version you are running, and has not been confirmed working.">
+                          <TextBlock Text="outdated" />
                         </Border>
                       </StackPanel>
 

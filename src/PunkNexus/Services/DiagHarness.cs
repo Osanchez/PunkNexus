@@ -204,7 +204,8 @@ public sealed class DiagHarness
         var all = Interactive().Where(c => c.IsEffectivelyVisible && c.IsEnabled).ToList();
         return all.FirstOrDefault(c => string.Equals(IdOf(c), idOrText, StringComparison.OrdinalIgnoreCase))
             ?? all.FirstOrDefault(c => string.Equals(TextOf(c), idOrText, StringComparison.OrdinalIgnoreCase))
-            ?? all.FirstOrDefault(c => TextOf(c).Contains(idOrText, StringComparison.OrdinalIgnoreCase));
+            ?? all.FirstOrDefault(c => TextOf(c).Contains(idOrText, StringComparison.OrdinalIgnoreCase))
+            ?? all.FirstOrDefault(c => string.Equals(c.GetType().Name, idOrText, StringComparison.OrdinalIgnoreCase));
     }
 
     private string Click(string target)
@@ -258,10 +259,10 @@ public sealed class DiagHarness
 
     private string SetText(string rest)
     {
+        if (string.IsNullOrWhiteSpace(rest)) return "settext: usage settext <id> [value]";
         var space = rest.IndexOf(' ');
-        if (space < 0) return "settext: usage settext <id> <value>";
-        var id = rest[..space];
-        var value = rest[(space + 1)..];
+        var id = space < 0 ? rest : rest[..space];
+        var value = space < 0 ? "" : rest[(space + 1)..];   // no value = clear the field
         if (Find(id) is not TextBox box) return $"settext: no TextBox matching '{id}'";
         box.Text = value;
         return $"settext: '{id}' = '{value}'";

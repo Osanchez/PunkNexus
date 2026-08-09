@@ -27,6 +27,8 @@
     <SolidColorBrush x:Key="DangerDim" Color="#3A1616" />
     <SolidColorBrush x:Key="Success" Color="#46D98B" />
     <SolidColorBrush x:Key="Warning" Color="#FFB020" />
+    <SolidColorBrush x:Key="WarningDim" Color="#3A2A0F" />
+    <SolidColorBrush x:Key="SuccessDim" Color="#12301F" />
 
     <x:Double x:Key="RadiusSm">4</x:Double>
     <CornerRadius x:Key="Radius">6</CornerRadius>
@@ -292,6 +294,22 @@
     <Setter Property="FontSize" Value="11" />
     <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
     <Setter Property="FontWeight" Value="Medium" />
+  </Style>
+
+  <!-- Coloured pills. Kept as classes rather than inline brushes so every badge in the app
+       agrees on what amber means, and so a palette change lands everywhere at once. -->
+  <Style Selector="Border.pill.warn">
+    <Setter Property="Background" Value="{DynamicResource WarningDim}" />
+  </Style>
+  <Style Selector="Border.pill.warn > TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource Warning}" />
+  </Style>
+
+  <Style Selector="Border.pill.ok">
+    <Setter Property="Background" Value="{DynamicResource SuccessDim}" />
+  </Style>
+  <Style Selector="Border.pill.ok > TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource Success}" />
   </Style>
 
   <Style Selector="Separator">

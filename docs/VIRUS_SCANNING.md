@@ -90,9 +90,10 @@ The same objects, newest first, capped at ten, plus the fields the client has no
 (`downloadUrl`, `declaredSha256`, `analysisId`). These exist for humans reading the repo and for
 change detection; the client only ever reads the index.
 
-BepInEx has a report too, filed under the id `BepInEx`. The client downloads and installs the loader
-exactly like a mod, so leaving it unscanned would put the gap in the one place a user has no choice
-but to accept.
+**BepInEx is deliberately not scanned.** This catalog checks community-submitted mod
+content; the loader is a fixed third-party dependency the registry pins, not something
+anyone submits here. The client says nothing about scanning when it installs the loader,
+rather than reporting a gap that is a decision.
 
 ---
 

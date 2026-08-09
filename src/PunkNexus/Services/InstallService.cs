@@ -26,9 +26,6 @@ public sealed class InstallService
     private const string LoaderMarkerFile = "winhttp.dll";
     private const string PluginsRelative = "BepInEx/plugins";
 
-    /// <summary>Id the scan reports file the loader's own download under. See tools/virus-scan.py.</summary>
-    private const string LoaderScanId = "BepInEx";
-
     private static readonly JsonSerializerOptions ManifestJson = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -89,7 +86,10 @@ public sealed class InstallService
         var zip = await DownloadAsync(asset, progress, ct).ConfigureAwait(false);
         try
         {
-            var report = await VerifyAsync(zip, asset, loader.Sha256, LoaderScanId, loader.Name, null, progress, ct)
+            // No scan id: BepInEx is not scanned. It is the loader itself rather than
+            // community-submitted mod content, so the catalog files no report for it and the
+            // dialog says nothing about scanning rather than reporting a gap that is deliberate.
+            var report = await VerifyAsync(zip, asset, loader.Sha256, null, loader.Name, null, progress, ct)
                 .ConfigureAwait(false);
 
             if (!await ConfirmAsync(report).ConfigureAwait(false)) return false;
@@ -189,7 +189,7 @@ public sealed class InstallService
         string zipPath,
         ResolvedAsset asset,
         string? expectedSha256,
-        string modId,
+        string? modId,
         string modName,
         ModManifest? published,
         IProgress<InstallProgress>? progress,
@@ -313,12 +313,16 @@ public sealed class InstallService
     /// fourth case — the reports file could not be loaded at all — says nothing rather than
     /// claiming the mod is unscanned.
     /// </summary>
-    private IEnumerable<DialogDetail> ScanDetails(string modId, string actualSha256)
+    private IEnumerable<DialogDetail> ScanDetails(string? modId, string actualSha256)
     {
+        // A null id means this download is deliberately outside the scanned set, which is not the
+        // same as an unscanned mod and must not be reported as one.
+        if (string.IsNullOrWhiteSpace(modId)) yield break;
+
         var index = PublishedScans?.Invoke();
         if (index is null) yield break;
 
-        var scan = index.Find(modId);
+        var scan = index.Find(modId!);
 
         if (scan is null || !scan.IsComplete)
         {

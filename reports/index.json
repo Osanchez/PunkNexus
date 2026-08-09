@@ -4,23 +4,6 @@
   "unreached": [],
   "scans": [
     {
-      "modId": "BepInEx",
-      "modName": "BepInEx",
-      "sha256": "701f348b7721c49b4163d9d2505d2c73444b8bd2a72da6a86ef33065a6456155",
-      "fileName": "BepInEx-Setup.zip",
-      "sizeBytes": 673549,
-      "modVersion": null,
-      "declaredMatches": null,
-      "scannedUtc": "2026-08-09T16:38:34Z",
-      "analyzedUtc": "2026-08-09T16:38:34Z",
-      "status": "completed",
-      "enginesTotal": 66,
-      "detections": 0,
-      "detectedBy": [],
-      "permalink": "https://www.virustotal.com/gui/file/701f348b7721c49b4163d9d2505d2c73444b8bd2a72da6a86ef33065a6456155",
-      "reportPath": "reports/BepInEx.json"
-    },
-    {
       "modId": "PunkCombatTweaksExtended",
       "modName": "Combat Tweaks Extended",
       "sha256": "776345aa0527bf3848ed4145840efab1425146875c254063e50aad20b2ffac89",

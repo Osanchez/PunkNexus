@@ -479,19 +479,14 @@ def write_index(index: dict) -> bool:
 # ----------------------------------------------------------------- the run
 
 def targets(registry: dict, only: str | None) -> list[tuple[str, str, str | None, dict | None]]:
-    """(id, label, manifest url, inline download) for everything the client can install.
+    """(id, label, manifest url, inline download) for every listed mod.
 
-    BepInEx is included: the client downloads and installs it exactly like a mod, so leaving it
-    unscanned would put a gap in the one place a user has no choice but to accept.
+    The registry's `loader` entry (BepInEx) is deliberately NOT scanned. This catalog exists to
+    check community-submitted mod content; BepInEx is the loader those mods run on, a fixed
+    third-party dependency the registry pins rather than something anyone submits here. The client
+    reports nothing about scanning when it installs the loader, rather than reporting a gap.
     """
     out: list[tuple[str, str, str | None, dict | None]] = []
-
-    loader = registry.get("loader") or {}
-    loader_source = loader.get("source") or (
-        {"url": loader["downloadUrl"]} if loader.get("downloadUrl") else None
-    )
-    if loader_source:
-        out.append(("BepInEx", loader.get("name") or "BepInEx", None, loader_source))
 
     for entry in registry.get("mods") or []:
         if not entry.get("enabled", True):

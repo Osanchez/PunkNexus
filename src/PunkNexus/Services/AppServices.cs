@@ -16,6 +16,8 @@ public sealed class AppServices
     public IconCache Icons { get; }
     public DialogService Dialogs { get; }
     public SteamBrowser Steam { get; }
+    public PlayService Play { get; }
+    public GameLauncher Launcher { get; }
 
     public static string Version { get; } =
         Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.0.0";
@@ -47,6 +49,8 @@ public sealed class AppServices
         Icons = new IconCache(Http);
         Dialogs = new DialogService();
         Steam = new SteamBrowser();
+        Play = new PlayService(Installer, ModManifests, State);
+        Launcher = new GameLauncher();
     }
 
     public static AppServices Create() => new();

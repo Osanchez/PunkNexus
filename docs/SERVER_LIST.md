@@ -304,3 +304,89 @@ today; a Cloudflare Worker does not fit there and should not be forced into it.
 - Whether the mod should verify the relay's identity beyond TLS. Almost certainly not worth it: the
   worst a spoofed relay achieves is showing a player a server list that is wrong, and the handshake
   still gates the actual join.
+
+---
+
+# Part 3 — Play, and keeping the user's own mods
+
+Every row in the browser has a **Play** button: it makes the install match the server, launches
+PUNK, and joins the lobby. The Mods tab has a plain **Launch game** button for the other case —
+someone who just finished installing and wants to play.
+
+## Why joining is destructive, and whose rule that is
+
+PunkMultiverse's `ModManifestPolicy` defaults to `Reject`, and the manifest it compares is the
+joiner's **entire** BepInEx plugin set as `guid@version`. One extra cosmetic mod on the client is a
+difference, and a difference is a refused join. So "join this server" does not mean *add the
+server's mods* — it means *make my plugin folder equal the server's*.
+
+That is the server's rule, not the client's, and the client cannot opt out of it. What it can do is
+make obeying it non-destructive.
+
+## The rule: nothing is deleted to make room
+
+`BepInEx/plugins/` is treated as a **materialized view**, not as where mods live. Anything in the
+way of a server's set is **moved** to `BepInEx/nexus-shelf/` and moved back afterwards, byte for
+byte. Nothing is deleted, so nothing has to be re-obtained.
+
+Deleting and reinstalling would be wrong twice over:
+
+- A mod the user installed **by hand** has no download for the client to repeat. It was never in the
+  catalog and the client has no idea where it came from — deleting it destroys it outright.
+- A mod's **tuned settings commonly live inside its own plugin folder** (PunkMultiverse keeps its
+  `config.cfg` there). Reinstalling a mod silently resets everything the user configured.
+
+Moving sidesteps both. It is also fast and atomic, which is why the shelf lives inside the game's
+own `BepInEx/` folder rather than in the client's storage: it has to be on the **same volume** as
+`plugins/`, or a game on `D:\` with client data on `C:\` turns every swap into a slow cross-volume
+copy that can fail half-finished. The shelf sits *beside* `plugins/`, never inside it, so BepInEx
+never loads what is parked there.
+
+## Getting them back
+
+Three independent triggers, because the cost of never restoring is the user's mod setup:
+
+1. **The game exits.** The client launched it and holds the process handle, so this is the ordinary
+   path and it needs no user action.
+2. **The client starts.** If the recorded state says a swap is still in effect, it is undone before
+   anything is listed. This covers the client being closed mid-session, or crashing.
+3. **The user asks.** A banner on the Mods tab explains that their mods are set aside and offers
+   **Restore my mods**.
+
+The state file is written **per folder as it is shelved**, before a single mod is downloaded — a
+crash between the two halves must not be the case where the user's mods are lost. Restoring clears
+each folder from the record only once it is actually back, so a partial failure leaves the remainder
+owed rather than silently forgotten. "Nothing was on the shelf" and "the move failed" are
+deliberately different outcomes: only the second is retried, or the client would nag forever about
+mods it had already given back.
+
+## Launching
+
+The game is started as `Punk.exe +connect_lobby <lobbyId>` — the exe directly, not through a
+`steam://` URL. Arguments are the entire point here and Steam's URL handler is an unreliable way to
+pass them, whereas a direct launch delivers them verbatim to the mod's `ParseLaunchArgs`, which
+reads them on a cold start and joins.
+
+This costs nothing on the Steam side: `SteamBootstrap` already self-initializes the Steam API on a
+direct launch, so the game still has a Steam identity and the Steam transport still works. The Steam
+client only has to be running.
+
+Dedicated UDP servers have no equivalent launch hook yet, so **Play** on a self-hosted row installs
+the mods and launches, and the user connects from the in-game DIRECT CONNECT screen. Wiring a
+`+punkmv_connect <host:port>` argument is the obvious follow-on when Part 2 is built.
+
+## Identifying what a server runs
+
+A session advertises its mods in the `mods` lobby key as **catalog ids**, read from each plugin
+folder's `mod.json` — not as BepInPlugin GUIDs. A catalog id is what the client can act on: look the
+mod up, show its name, install it. A GUID would leave the client guessing which listing it belongs
+to. Folders with no `mod.json` fall back to their GUID so a hand-built mod is still visible, and the
+client resolves either form (registry `id` first, then the optional `bepInExGuid` field).
+
+## The lever that makes swaps rarer
+
+Swapping is needed as often as it is because the host compares *everything*. If a mod could declare
+itself client-side-only — a HUD tweak, a camera mod, anything that cannot desync a session — and
+PunkMultiverse excluded those from the comparison, most players would never need a swap at all.
+That is a mod-side change and it is opt-in per author, so loadout swapping stays the general
+mechanism; but it is the highest-value follow-on here.

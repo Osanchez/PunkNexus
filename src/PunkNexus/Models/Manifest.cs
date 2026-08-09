@@ -51,6 +51,17 @@ public sealed class RegistryEntry
     [JsonPropertyName("homepage")] public string? Homepage { get; set; }
     [JsonPropertyName("tags")] public List<string> Tags { get; set; } = new();
 
+    /// <summary>
+    /// The mod's BepInEx plugin GUID. Optional, and only used to recognize a mod a SERVER names:
+    /// a session advertises its plugin set, and depending on the mod build it names them by GUID
+    /// rather than by registry id. Without this the client cannot tell that
+    /// "com.example.punkloot" and the "PunkLoot" listing are the same mod.
+    /// </summary>
+    [JsonPropertyName("bepInExGuid")] public string? BepInExGuid { get; set; }
+
+    /// <summary>Folder under <c>BepInEx/plugins/</c>. Mirrors the mod manifest; defaults to the id.</summary>
+    [JsonPropertyName("pluginFolder")] public string? PluginFolder { get; set; }
+
     /// <summary>Lets the registry delist a mod without deleting its history.</summary>
     [JsonPropertyName("enabled")] public bool Enabled { get; set; } = true;
 }

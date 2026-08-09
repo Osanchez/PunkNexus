@@ -142,6 +142,7 @@ public sealed class InstallService
                 Id = manifest.Id,
                 Version = manifest.Version,
                 InstalledUtc = DateTime.UtcNow.ToString("o"),
+                PluginFolder = manifest.EffectivePluginFolder,
                 Files = written,
             };
             _store.Save(gameRoot, state);

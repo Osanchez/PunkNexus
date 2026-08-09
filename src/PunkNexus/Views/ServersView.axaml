@@ -18,6 +18,8 @@
                        Text="{Binding MatchCount, StringFormat='{}{0} server(s) match your filters'}" />
           </StackPanel>
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <TextBlock Text="{Binding PlayStatus}" Classes="muted" FontSize="12"
+                       VerticalAlignment="Center" IsVisible="{Binding PlayStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
             <Button Classes="ghost" Content="Clear filters" Command="{Binding ClearFiltersCommand}" />
             <Button Classes="ghost" Content="Refresh" Command="{Binding RefreshCommand}"
                     IsEnabled="{Binding !IsLoading}" />
@@ -111,13 +113,14 @@
         </Border>
 
         <!-- header row -->
-        <Grid ColumnDefinitions="*,190,90,130,110" ColumnSpacing="12" Margin="14,4,14,0"
+        <Grid ColumnDefinitions="*,170,80,120,100,96" ColumnSpacing="12" Margin="14,4,14,0"
               IsVisible="{Binding HasResults}">
           <TextBlock Grid.Column="0" Classes="label" Text="NAME" />
           <TextBlock Grid.Column="1" Classes="label" Text="ADDRESS" />
           <TextBlock Grid.Column="2" Classes="label" Text="PLAYERS" />
           <TextBlock Grid.Column="3" Classes="label" Text="MODE" />
           <TextBlock Grid.Column="4" Classes="label" Text="SOURCE" />
+          <TextBlock Grid.Column="5" Classes="label" Text="" />
         </Grid>
 
         <ItemsControl ItemsSource="{Binding Visible}">
@@ -130,7 +133,7 @@
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="models:ServerEntry">
               <Border Classes="row">
-                <Grid ColumnDefinitions="*,190,90,130,110" ColumnSpacing="12">
+                <Grid ColumnDefinitions="*,170,80,120,100,96" ColumnSpacing="12">
                   <StackPanel Grid.Column="0" Spacing="3">
                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14" />
                     <ItemsControl ItemsSource="{Binding Mods}">
@@ -165,6 +168,15 @@
                           HorizontalAlignment="Left">
                     <TextBlock Text="{Binding SourceLabel}" />
                   </Border>
+
+                  <!-- Installs whatever this server runs, sets the rest aside, then launches
+                       straight into the lobby. The command lives on the page, not the row, so it
+                       is reached through the parent's DataContext. -->
+                  <Button Grid.Column="5" Classes="primary" Content="Play"
+                          HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                          Command="{Binding $parent[ItemsControl].((vm:ServersViewModel)DataContext).PlayCommand}"
+                          CommandParameter="{Binding}"
+                          IsEnabled="{Binding $parent[ItemsControl].((vm:ServersViewModel)DataContext).CanPlay}" />
                 </Grid>
               </Border>
             </DataTemplate>

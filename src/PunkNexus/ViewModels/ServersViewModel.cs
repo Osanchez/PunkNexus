@@ -45,6 +45,8 @@ public sealed partial class ServersViewModel : ViewModelBase
     [ObservableProperty] private string? _notice;
     [ObservableProperty] private string? _steamNotice;
     [ObservableProperty] private string? _updatedUtc;
+    [ObservableProperty] private bool _isPlayBusy;
+    [ObservableProperty] private string? _playStatus;
 
     public ServersViewModel(AppServices services, GameSession session)
     {
@@ -58,6 +60,10 @@ public sealed partial class ServersViewModel : ViewModelBase
     public int MatchCount => Visible.Count;
     public bool HasSteamNotice => !string.IsNullOrWhiteSpace(SteamNotice);
 
+    /// <summary>Exposed as a positive because a compiled binding cannot negate through a cast,
+    /// which is what a row's Play button has to do to reach this page's state.</summary>
+    public bool CanPlay => !IsPlayBusy;
+
     public int SteamCount => _all.Count(s => s.Source == ServerSource.Steam);
     public int DedicatedCount => _all.Count(s => s.Source == ServerSource.Dedicated);
 
@@ -70,6 +76,7 @@ public sealed partial class ServersViewModel : ViewModelBase
     partial void OnHideEmptyChanged(bool value) => ApplyFilter();
     partial void OnHideFullChanged(bool value) => ApplyFilter();
     partial void OnSteamNoticeChanged(string? value) => OnPropertyChanged(nameof(HasSteamNotice));
+    partial void OnIsPlayBusyChanged(bool value) => OnPropertyChanged(nameof(CanPlay));
 
     [RelayCommand]
     public async Task RefreshAsync()
@@ -145,6 +152,102 @@ public sealed partial class ServersViewModel : ViewModelBase
             Log.Error("Browsing Steam lobbies failed", ex);
             SteamNotice = $"Could not read Steam sessions: {ex.Message}";
         }
+    }
+
+    // ---------------------------------------------------------------- play
+
+    /// <summary>
+    /// Match this install to the server's mod set, then launch straight into it.
+    ///
+    /// The plan is shown and consented to before anything moves, because the honest description of
+    /// what this does is "temporarily replace your mods" — and a user who is not told that will
+    /// reasonably think the client lost them.
+    /// </summary>
+    [RelayCommand]
+    private async Task PlayAsync(ServerEntry? server)
+    {
+        if (server is null || IsPlayBusy) return;
+
+        if (!_session.HasPath)
+        {
+            Notice = "Set up your game folder before joining a server.";
+            return;
+        }
+
+        IsPlayBusy = true;
+        PlayStatus = null;
+        try
+        {
+            var registry = await _services.Manifests
+                .LoadRegistryAsync(forceRefresh: false, CancellationToken.None)
+                .ConfigureAwait(true);
+
+            var plan = _services.Play.Plan(_session.Path!, server.Mods, registry.Value.Mods);
+
+            if (!await ConfirmPlanAsync(server, plan).ConfigureAwait(true)) return;
+
+            if (!plan.IsReady)
+            {
+                var progress = new Progress<InstallProgress>(p => PlayStatus = p.Stage);
+                await _services.Play
+                    .ApplyAsync(_session.Path!, plan, server.Name, progress, CancellationToken.None)
+                    .ConfigureAwait(true);
+            }
+
+            PlayStatus = "Starting PUNK…";
+            _services.Launcher.Launch(_session.Path!, JoinArgsFor(server));
+            PlayStatus = $"Launched — joining {server.Name}.";
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Could not start play for {server.Name}", ex);
+            PlayStatus = null;
+            Notice = $"Could not join {server.Name}: {ex.Message}";
+        }
+        finally
+        {
+            IsPlayBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// A Steam session is joined by lobby id on the command line, which the mod reads on a cold
+    /// start. A dedicated server has no such hook yet, so it launches plain and the user connects
+    /// from the in-game screen — see docs/SERVER_LIST.md.
+    /// </summary>
+    private static string? JoinArgsFor(ServerEntry server) =>
+        server.IsSteam && !string.IsNullOrWhiteSpace(server.Id)
+            ? GameLauncher.ConnectLobbyArgs(server.Id!)
+            : null;
+
+    private Task<bool> ConfirmPlanAsync(ServerEntry server, PlayPlan plan)
+    {
+        var details = plan.Steps()
+            .Select(s => new DialogDetail(s.Summary, s.Ok))
+            .ToList();
+
+        if (plan.IsReady && !plan.HasGaps)
+        {
+            // Nothing to change. Launching without a dialog would be defensible, but this is the
+            // one moment the user learns the client checked at all.
+            details.Add(new DialogDetail("Your mods already match this server", true));
+        }
+
+        var message = plan.IsReady
+            ? $"Your install already matches {server.Name}. PUNK will start and join it."
+            : $"To join {server.Name}, your mods have to match the server's exactly — that is the "
+              + "server's rule, not ours. Anything of yours that is in the way is moved aside, kept "
+              + "safe, and put back automatically when you finish playing. Nothing is deleted.";
+
+        return _services.Dialogs.ShowAsync(new DialogRequest
+        {
+            Title = plan.IsReady ? $"Join {server.Name}" : "Set up and join",
+            Message = message,
+            Kind = plan.HasGaps ? DialogKind.Warning : DialogKind.Info,
+            Details = details,
+            AcceptText = plan.IsReady ? "Launch" : "Set up and launch",
+            DeclineText = "Cancel",
+        });
     }
 
     [RelayCommand]

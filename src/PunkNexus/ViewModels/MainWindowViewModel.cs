@@ -40,6 +40,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         // The installer reports what it verified; the shell is what actually shows it.
         services.Installer.ConfirmDownload = ShowDownloadReportAsync;
 
+        // The game exiting is what gives the user their own mods back. Nothing else asks for it, so
+        // if this handler is ever lost the restore falls to the startup check below.
+        services.Launcher.Exited += () => Dispatcher.UIThread.Post(() => _ = RestoreModsAsync());
+
         Setup.Completed += OnSetupCompleted;
         SettingsPage.GameFolderChanged += () => _ = ReloadForSessionAsync();
         SettingsPage.SetupRequested += ReturnToSetup;
@@ -130,7 +134,38 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         SettingsPage.Refresh();
         _installWatch.Start();
 
+        // A swap still in effect means a previous run did not get to put the user's mods back —
+        // the client was closed while playing, or it crashed. Undo it before anything is listed,
+        // so what the Mods tab shows is the user's own set and not a server's.
+        await RestoreModsAsync().ConfigureAwait(true);
+
         await ReloadForSessionAsync().ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// Puts the user's own mods back after a server visit. Safe to call at any time — it returns
+    /// immediately when nothing is owed — and deliberately not gated on how the game was closed.
+    /// </summary>
+    private async Task RestoreModsAsync()
+    {
+        if (!Session.HasPath || !_services.Play.HasSwap(Session.Path!)) return;
+
+        var server = _services.Play.SwapServerName(Session.Path!);
+        Log.Info($"Restoring the mod set that was set aside for \"{server}\".");
+
+        try
+        {
+            await _services.Play
+                .RestoreAsync(Session.Path!, null, CancellationToken.None)
+                .ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Restoring the user's mods failed", ex);
+        }
+
+        Mods.RefreshSwapState();
+        Mods.RefreshInstalledState();
     }
 
     private async Task ReloadForSessionAsync()

@@ -73,22 +73,21 @@ public static class ScanDialog
             };
         }
 
-        // Lead with coverage, because "which file, when, how many engines" is the part that is
-        // actually a fact about this download.
+        // Lead with which file and when. That is the part that is actually a fact; everything
+        // after it is qualification.
+        var named = string.IsNullOrWhiteSpace(scan.FileName) ? "The download" : scan.FileName!;
         details.Add(new DialogDetail(
-            $"Scanned the exact file you would download — SHA-256 {Short(scan.Sha256)}", true));
+            $"{named} · {DownloadReport.FormatSize(scan.SizeBytes)} · SHA-256 {Short(scan.Sha256)}"));
 
         details.Add(new DialogDetail(scan.Coverage, true));
-
-        if (!string.IsNullOrWhiteSpace(scan.FileName))
-            details.Add(new DialogDetail(
-                $"{scan.FileName} · {DownloadReport.FormatSize(scan.SizeBytes)}"));
 
         if (scan.DeclaredMatches == true)
             details.Add(new DialogDetail("The author's published checksum matches the scanned file", true));
 
-        // A mod can be released between scheduled scans. Saying so is more useful than letting the
-        // user assume the report covers whatever they are about to install.
+        // A mod can be released between scheduled scans, and the claim "this is the file you would
+        // download" is only true when it has not. Never assert it on the strength of the mod id
+        // alone — the hash is what ties a report to a file, and the client re-checks it against the
+        // real bytes at install time.
         if (!string.IsNullOrWhiteSpace(publishedVersion) &&
             !string.IsNullOrWhiteSpace(scan.ModVersion) &&
             !string.Equals(publishedVersion, scan.ModVersion, StringComparison.OrdinalIgnoreCase))
@@ -99,7 +98,9 @@ public static class ScanDialog
         }
         else if (!string.IsNullOrWhiteSpace(scan.ModVersion))
         {
-            details.Add(new DialogDetail($"This is the current release, v{scan.ModVersion}", true));
+            details.Add(new DialogDetail(
+                $"v{scan.ModVersion} is the current release, so this covers the file you would " +
+                "install now", true));
         }
 
         if (scan.HasDetections)

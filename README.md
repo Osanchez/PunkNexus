@@ -56,6 +56,25 @@ pretending.
 
 Uninstalling removes the files the client recorded writing, so it takes out what it put in.
 
+### Shows what a virus scan found — and what it doesn't mean
+
+Every download in the catalog is scanned with VirusTotal on a schedule. Select a mod to see its
+latest report: which file was scanned, when, by how many engines, and a link to the full report on
+VirusTotal. At install time you're told whether the scan covers the *exact* file you just
+downloaded, matched by hash, or whether it covers an earlier build.
+
+Two things this deliberately does not do:
+
+- **It doesn't block.** A checksum mismatch blocks an install, because that is a definite integrity
+  failure with no innocent explanation. A scan result is not that, so it's shown and never enforced.
+- **It doesn't put a detection count in front of you as a verdict.** Mods are unsigned code whose
+  job is patching a running game — precisely what heuristic antivirus engines look for — so a
+  legitimate mod picking up a couple of detections is ordinary. Counts appear in the report, next to
+  the explanation, never as a badge on a list.
+
+A mod with no report yet is normal, and says nothing about it either way. See
+[docs/VIRUS_SCANNING.md](docs/VIRUS_SCANNING.md) for the schema and the rules the UI follows.
+
 ### Browses servers
 
 ![The Servers tab](docs/images/servers.png)
@@ -317,8 +336,9 @@ game folder.
 | `src/PunkNexus/Views/` | Avalonia XAML |
 | `src/PunkNexus/Themes/` | The PUNK theme — colors and control styles |
 | `manifest/` | The published mod and server catalogs |
-| `tools/` | `validate-manifest.py`, the catalog checker CI runs |
-| `docs/` | [Mod authoring contract](docs/MOD_AUTHORING.md), [server list design](docs/SERVER_LIST.md) |
+| `reports/` | **Generated** — VirusTotal scan reports, written by CI. Do not edit |
+| `tools/` | `validate-manifest.py` (catalog checker) and `virus-scan.py` (scanner), both run by CI |
+| `docs/` | [Mod authoring contract](docs/MOD_AUTHORING.md), [server list design](docs/SERVER_LIST.md), [virus scanning](docs/VIRUS_SCANNING.md) |
 
 ## Where it keeps things
 
@@ -341,5 +361,9 @@ it is removed once empty.
   as administrator.
 - `sha256` is honoured for any manifest entry that sets it; entries without one are not verified
   beyond the transport.
+- Catalog downloads are scanned with VirusTotal and the result is shown before you install, matched
+  to the file by hash. It is evidence, not a gate — see
+  [docs/VIRUS_SCANNING.md](docs/VIRUS_SCANNING.md) for why, and for why a couple of detections on a
+  legitimate mod is expected rather than alarming.
 - Mods are third-party code that you choose to install. This client downloads and extracts what the
-  catalog points at — it does not review it.
+  catalog points at — a scan is not a review, and neither is this client.

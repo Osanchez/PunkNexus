@@ -179,6 +179,27 @@ still remove it from the list, which is why installed mods are never filtered ou
 
 ---
 
+## Virus scanning
+
+Once you are listed, your release zip is scanned with VirusTotal automatically. Nothing is asked of
+you: a scheduled job resolves your `download`, fetches the bytes, hashes them itself, and files a
+report in [`reports/`](../reports/) under that hash. A new build is picked up because its hash
+changed, so releasing is all you have to do.
+
+**Expect some detections, and do not panic about them.** Your mod is an unsigned assembly whose
+whole job is patching a running process, which is what behavior-based engines are built to catch. A
+few hits out of ~70 engines is the normal result for a legitimate mod here.
+
+The client is designed around that fact. It never shows a detection count as a verdict, never puts
+one on your row in the list, never colors it as a failure, and **never blocks an install on a scan
+result** — see [VIRUS_SCANNING.md](VIRUS_SCANNING.md) for the rules it follows. The only thing that
+blocks an install is a `sha256` mismatch, which is an integrity failure rather than a judgement.
+
+Between your release and the next scheduled scan your newest build shows as unscanned. That is
+normal and is stated as such.
+
+---
+
 ## Checklist
 
 - [ ] `mod.json` in the repo, with `id`, `version`, `gameVersion`, `download`

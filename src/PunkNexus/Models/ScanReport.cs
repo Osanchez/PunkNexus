@@ -18,14 +18,13 @@ public sealed class ScanIndex
     [JsonPropertyName("generatedUtc")] public string? GeneratedUtc { get; set; }
     [JsonPropertyName("scans")] public List<ScanRecord> Scans { get; set; } = new();
 
+    /// <summary>
+    /// The newest report for a mod. Finding it by id is only the first half of the question — the
+    /// caller still has to compare <see cref="ScanRecord.Sha256"/> against the file in hand, because
+    /// a mod released since the last scan has a report that describes different bytes.
+    /// </summary>
     public ScanRecord? Find(string modId) =>
         Scans.FirstOrDefault(s => string.Equals(s.ModId, modId, StringComparison.OrdinalIgnoreCase));
-
-    /// <summary>The report for one exact file, or null when nothing has scanned those bytes.</summary>
-    public ScanRecord? FindByHash(string sha256) =>
-        string.IsNullOrWhiteSpace(sha256)
-            ? null
-            : Scans.FirstOrDefault(s => string.Equals(s.Sha256, sha256, StringComparison.OrdinalIgnoreCase));
 }
 
 public sealed class ScanRecord

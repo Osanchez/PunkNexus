@@ -34,6 +34,8 @@ namespace PunkNexus.Services;
 ///   settext &lt;id&gt; &lt;value&gt;   set a TextBox's text
 ///   tab &lt;name&gt;             select a tab by header
 ///   screenshot &lt;name&gt;      render THIS WINDOW to shots\&lt;name&gt;.png
+///   dialog                 whether a modal is open, its title and its buttons
+///   waitfor &lt;text&gt; [secs]  wait until a control is clickable, instead of sleeping and hoping
 ///   state                  settings + install state + shelf, as the app sees them
 ///   quit                   close the app
 /// </summary>
@@ -84,7 +86,7 @@ public sealed class DiagHarness
         // Polled rather than FileSystemWatcher: a watcher fires mid-write and hands you half a
         // line. 250ms is far below human reaction time and costs nothing.
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
-        _timer.Tick += (_, _) => Pump();
+        _timer.Tick += (_, _) => { Pump(); TickWait(); };
         _timer.Start();
 
         Log.Warn("DIAGNOSTIC MODE: this window can be driven from " + _cmdFile
@@ -125,7 +127,24 @@ public sealed class DiagHarness
         switch (verb)
         {
             case "uidump": Out(Dump()); return;
-            case "click": Out(Click(rest)); return;
+            case "dialog": Out(DialogState()); return;
+            case "waitfor": Out(BeginWait(rest)); return;
+            case "click":
+            {
+                // Report the dialog state after the click as well. "click: 'Install'" only ever
+                // said a button was invoked; it could not distinguish opening a prompt, dismissing
+                // one, or hitting the wrong control entirely -- which is exactly how three stray
+                // installs got started while a prompt sat unanswered.
+                var before = OpenDialogTitle();
+                var result = Click(rest);
+                var after = OpenDialogTitle();
+                if (before != after)
+                    result += after is null ? "  [dialog closed]" : $"  [dialog now: {after}]";
+                else if (after is not null)
+                    result += $"  [dialog still: {after}]";
+                Out(result);
+                return;
+            }
             case "tab": Out(SelectTab(rest)); return;
             case "settext": Out(SetText(rest)); return;
             case "screenshot": Out(Screenshot(rest)); return;
@@ -189,6 +208,81 @@ public sealed class DiagHarness
     private IEnumerable<Control> Interactive() =>
         _window.GetVisualDescendants().OfType<Control>()
                .Where(c => c is Button or CheckBox or TextBox or TabItem or ComboBox or ListBoxItem);
+
+    /// <summary>The title of the open modal, or null when none is showing.</summary>
+    private string? OpenDialogTitle()
+    {
+        var overlay = _window.GetVisualDescendants().OfType<Control>()
+            .FirstOrDefault(c => c.Name == "DialogOverlay" && c.IsEffectivelyVisible);
+        if (overlay is null) return null;
+
+        var text = overlay.GetVisualDescendants().OfType<TextBlock>()
+            .Select(t => t.Text)
+            .FirstOrDefault(t => !string.IsNullOrWhiteSpace(t));
+        return text ?? "(untitled)";
+    }
+
+    private string DialogState()
+    {
+        var overlay = _window.GetVisualDescendants().OfType<Control>()
+            .FirstOrDefault(c => c.Name == "DialogOverlay" && c.IsEffectivelyVisible);
+        if (overlay is null) return "dialog: none open";
+
+        var title = OpenDialogTitle() ?? "(untitled)";
+        // Only the dialog's own buttons. Listing the whole window made the answer useless -- the
+        // nav and every row button appeared alongside the two that actually belong to the modal.
+        var buttons = overlay.GetVisualDescendants().OfType<Button>()
+            .Where(b => b.IsEffectivelyVisible && b.IsEnabled)
+            .Select(IdOf);
+        return $"dialog: OPEN \"{title}\" buttons=[{string.Join(", ", buttons)}]";
+    }
+
+    // ------------------------------------------------------------------ waiting
+
+    private string? _waitFor;
+    private DateTime _waitUntil;
+
+    /// <summary>
+    /// Wait until a control matching the text is visible and enabled, then say so.
+    ///
+    /// The alternative was a driver sleeping a guessed number of seconds between steps, which is
+    /// how a click landed before its dialog existed and hit whatever was underneath. Non-blocking
+    /// by design: it is re-checked on the same timer that reads commands, so the UI keeps running
+    /// while the wait is outstanding.
+    /// </summary>
+    private string BeginWait(string rest)
+    {
+        if (string.IsNullOrWhiteSpace(rest)) return "waitfor: usage waitfor <text> [seconds]";
+        var parts = rest.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var seconds = 30.0;
+        if (parts.Length > 1 && double.TryParse(parts[^1], out var parsed))
+        {
+            seconds = parsed;
+            rest = string.Join(' ', parts[..^1]);
+        }
+        _waitFor = rest;
+        _waitUntil = DateTime.UtcNow.AddSeconds(seconds);
+        return $"waitfor: watching for '{rest}' (up to {seconds:0}s)";
+    }
+
+    private void TickWait()
+    {
+        if (_waitFor is null) return;
+
+        if (Find(_waitFor) is not null)
+        {
+            var what = _waitFor;
+            _waitFor = null;
+            Out($"waitfor: '{what}' is ready");
+            return;
+        }
+        if (DateTime.UtcNow > _waitUntil)
+        {
+            var what = _waitFor;
+            _waitFor = null;
+            Out($"waitfor: TIMED OUT waiting for '{what}'. {DialogState()}");
+        }
+    }
 
     // ------------------------------------------------------------------ actions
 

@@ -1,6 +1,5 @@
 {
   "schemaVersion": 1,
-  "generatedUtc": "2026-08-09T17:04:31Z",
   "complete": true,
   "unreached": [],
   "scans": [
@@ -293,5 +292,6 @@
       "permalink": "https://www.virustotal.com/gui/file/7f4789d1bd9fc94804d215c12d62f5adf9d9a3bee022d0ede1968a4a9692609b",
       "reportPath": "reports/SellVaultItems.json"
     }
-  ]
+  ],
+  "updatedUtc": "2026-08-09T17:06:45Z"
 }

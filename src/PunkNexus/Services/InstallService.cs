@@ -146,7 +146,11 @@ public sealed class InstallService
             if (IsModInstalled(gameRoot, manifest.EffectivePluginFolder))
                 RemoveModFiles(gameRoot, manifest.Id, manifest.EffectivePluginFolder, manifest.Name, keepState: true);
 
-            var written = ZipSafe.Extract(zip, gameRoot, null, ct).ToList();
+            // Confined to this mod's own plugin folder. The verification above should already have
+            // refused anything that would land elsewhere; this makes it impossible rather than
+            // merely checked, so a gap in those checks cannot cost someone another mod's files.
+            var written = ZipSafe.Extract(zip, gameRoot, null, ct,
+                confineTo: $"{PluginsRelative}/{manifest.EffectivePluginFolder}").ToList();
             EnsureInstalledManifest(gameRoot, manifest, written);
 
             var state = _store.Load(gameRoot);
@@ -227,15 +231,38 @@ public sealed class InstallService
             details.Add(new DialogDetail("No checksum was published, so the file could not be verified", null));
         }
 
-        // ---- the manifest inside the archive
+        // ---- what the archive actually contains
         if (published is not null)
         {
-            var entry = $"{PluginsRelative}/{published.EffectivePluginFolder}/{ModManifest.FileName}";
+            // Ask which plugin folders are in there BEFORE looking for a manifest at the path we
+            // hoped for. Reading only the expected path meant a substituted archive -- one mod's
+            // zip served as another's download -- had nothing there, was reported as merely
+            // "unverified", and installed. It then wrote into the folder it really belonged to,
+            // and the installer recorded another mod's files as this one's, so uninstalling it
+            // deleted them. Folder identity is the check that catches the substitution itself.
+            var folders = ZipSafe.PluginFolders(zipPath, PluginsRelative);
+            var expectedFolder = published.EffectivePluginFolder;
+            var foreign = folders
+                .Where(f => !string.Equals(f, expectedFolder, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (foreign.Count > 0)
+            {
+                failed = true;
+                details.Add(new DialogDetail(
+                    $"The archive contains '{string.Join("', '", foreign)}', not '{expectedFolder}'",
+                    false));
+            }
+
+            var entry = $"{PluginsRelative}/{expectedFolder}/{ModManifest.FileName}";
             var json = ZipSafe.TryReadTextEntry(zipPath, entry);
 
             if (json is null)
             {
                 unverified = true;
+                // Only a note when the archive is otherwise the right shape: some mods ship no
+                // manifest at all, and refusing those would block legitimate installs. When the
+                // folders are foreign, the line above has already failed it.
                 details.Add(new DialogDetail($"The archive contains no {ModManifest.FileName}", null));
             }
             else
@@ -378,11 +405,12 @@ public sealed class InstallService
     {
         var accepted = ConfirmDownload is null || await ConfirmDownload(report).ConfigureAwait(true);
 
-        if (report.ChecksumMismatch)
+        if (report.Blocks)
         {
             // Always at error level, whether or not anyone was watching. A refused install is
             // exactly the event someone reads the log to find afterwards.
-            Log.Error($"CHECKSUM MISMATCH for {report.ModName}: "
+            var what = report.ChecksumMismatch ? "CHECKSUM MISMATCH" : "ARCHIVE REJECTED";
+            Log.Error($"{what} for {report.ModName}: "
                       + string.Join("; ", report.Details.Where(d => d.Ok == false).Select(d => d.Text))
                       + " — install refused.");
             return false;

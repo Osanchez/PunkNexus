@@ -42,7 +42,15 @@ public sealed record DownloadReport(
     public bool ChecksumMismatch { get; init; }
 
     /// <summary>Whether the install is refused outright rather than put to the user.</summary>
-    public bool Blocks => ChecksumMismatch;
+    /// <summary>
+    /// Any failed verdict refuses the install -- a checksum mismatch, and equally an archive that
+    /// turns out to be a different mod. Both mean the bytes are not what the listing describes,
+    /// which is the only question this dialog asks.
+    ///
+    /// This was ChecksumMismatch alone, so an identity failure rendered the red "Download
+    /// rejected" panel, said nothing was installed, and then offered an Install button anyway.
+    /// </summary>
+    public bool Blocks => Verdict == DownloadVerdict.Failed;
 
     public DialogKind Kind => Verdict switch
     {

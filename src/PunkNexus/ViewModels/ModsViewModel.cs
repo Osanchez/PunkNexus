@@ -214,58 +214,7 @@ public sealed partial class ModsViewModel : ViewModelBase
     /// Set while a server's mod set is loaded in place of the user's own. The Mods tab is where
     /// someone would first notice their mods "missing", so the explanation belongs here.
     /// </summary>
-    [ObservableProperty] private string? _swapNotice;
 
-    public bool HasSwapNotice => !string.IsNullOrWhiteSpace(SwapNotice);
-    partial void OnSwapNoticeChanged(string? value) => OnPropertyChanged(nameof(HasSwapNotice));
-
-    public void RefreshSwapState()
-    {
-        if (!_session.HasPath || !_services.Play.HasSwap(_session.Path!))
-        {
-            SwapNotice = null;
-            return;
-        }
-
-        var server = _services.Play.SwapServerName(_session.Path!);
-        SwapNotice = string.IsNullOrWhiteSpace(server)
-            ? "Your own mods are set aside for a server visit. They are safe and can be restored."
-            : $"Your own mods are set aside so you can play on \"{server}\". They are safe — "
-              + "restore them whenever you like, or just finish playing and they come back on their own.";
-    }
-
-    /// <summary>Put the user's mods back without waiting for the game to close.</summary>
-    [RelayCommand]
-    private async Task RestoreMyModsAsync()
-    {
-        if (!_session.HasPath) return;
-
-        LoaderBusy = true;
-        LoaderBusyText = "Restoring your mods";
-        try
-        {
-            var progress = new Progress<InstallProgress>(p => LoaderBusyText = p.Stage);
-            var complete = await _services.Play
-                .RestoreAsync(_session.Path!, progress, CancellationToken.None)
-                .ConfigureAwait(true);
-
-            Status = complete
-                ? "Your mods are back."
-                : "Some folders could not be moved back — close the game and try again.";
-        }
-        catch (Exception ex)
-        {
-            Log.Error("Restoring mods failed", ex);
-            Notice = $"Could not restore your mods: {ex.Message}";
-        }
-        finally
-        {
-            LoaderBusy = false;
-            LoaderBusyText = null;
-            RefreshSwapState();
-            RefreshInstalledState();
-        }
-    }
 
     /// <summary>
     /// Fetches the scan index, treating any failure as "unknown" rather than as "unscanned".

@@ -54,19 +54,11 @@
     <!-- ==================================================== banners -->
     <StackPanel Grid.Row="1" Margin="24,0,24,12" Spacing="10">
 
-      <!-- A server visit swapped the user's mods out. This is where they would first notice, so
-           this is where it gets explained — and undone on demand. -->
-      <Border Classes="banner" IsVisible="{Binding HasSwapNotice}">
-        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-          <StackPanel Grid.Column="0" Spacing="3">
-            <TextBlock Text="Your mods are set aside" FontWeight="SemiBold" FontSize="14" />
-            <TextBlock Classes="muted" FontSize="12.5" TextWrapping="Wrap" Text="{Binding SwapNotice}" />
-          </StackPanel>
-          <Button Grid.Column="1" Classes="primary" Content="Restore my mods"
-                  VerticalAlignment="Center" MinWidth="150"
-                  Command="{Binding RestoreMyModsCommand}" IsEnabled="{Binding !LoaderBusy}" />
-        </Grid>
-      </Border>
+      <!-- No "your mods are set aside" banner and no restore button. A server visit is meant to
+           be invisible: the swap undoes itself when the game exits, when Nexus next starts with one
+           still recorded, and now whenever Nexus notices a swap outliving the game. Explaining the
+           mechanism to a player mid-session only invites them to intervene in something that is
+           already handling itself. -->
 
       <!-- BepInEx is the hard prerequisite; nothing else can work without it. -->
       <Border Classes="banner" IsVisible="{Binding NeedsLoader}">

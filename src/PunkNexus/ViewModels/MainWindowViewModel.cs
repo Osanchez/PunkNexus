@@ -36,7 +36,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         Mods = new ModsViewModel(services, Session);
         Servers = new ServersViewModel(services, Session)
         {
-            SwapChanged = () => { Mods.RefreshSwapState(); Mods.RefreshInstalledState(); },
+            SwapChanged = () => Mods.RefreshInstalledState(),
         };
         SettingsPage = new SettingsViewModel(services, Session);
 
@@ -46,6 +46,20 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         // The game exiting is what gives the user their own mods back. Nothing else asks for it, so
         // if this handler is ever lost the restore falls to the startup check below.
         services.Launcher.Exited += () => Dispatcher.UIThread.Post(() => _ = RestoreModsAsync());
+
+        // A swap must never outlive the game, and the player should never have to ask for that.
+        // Exited covers the ordinary case and startup covers a crashed client, but neither covers
+        // a swap that is applied while the game never actually starts, or a game closed by
+        // something other than the process Nexus is holding. This sweep closes that without a
+        // button: if mods are set aside and no game is running, put them back.
+        _swapWatch = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        _swapWatch.Tick += (_, _) =>
+        {
+            if (!Session.HasPath || _services.Launcher.IsRunning) return;
+            if (!_services.Play.HasSwap(Session.Path!)) return;
+            _ = RestoreModsAsync();
+        };
+        _swapWatch.Start();
 
         Setup.Completed += OnSetupCompleted;
         SettingsPage.GameFolderChanged += () => _ = ReloadForSessionAsync();
@@ -171,9 +185,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             Log.Error("Restoring the user's mods failed", ex);
         }
 
-        Mods.RefreshSwapState();
         Mods.RefreshInstalledState();
     }
+
+    private readonly DispatcherTimer? _swapWatch;
 
     private async Task ReloadForSessionAsync()
     {

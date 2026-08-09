@@ -67,7 +67,20 @@
                           HorizontalAlignment="Stretch" />
               </StackPanel>
 
-              <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" Spacing="16">
+              <StackPanel Grid.Row="2" Grid.Column="0" Spacing="5">
+                <TextBlock Text="Region" Classes="dim" />
+                <ComboBox ItemsSource="{Binding Regions}"
+                          SelectedItem="{Binding SelectedRegion, Mode=TwoWay}"
+                          HorizontalAlignment="Stretch" />
+              </StackPanel>
+
+              <StackPanel Grid.Row="2" Grid.Column="1" Spacing="5">
+                <TextBlock Text="Max ping (ms)" Classes="dim" />
+                <TextBox Text="{Binding MaxPingText, Mode=TwoWay}" Watermark="Any" />
+              </StackPanel>
+
+              <StackPanel Grid.Row="2" Grid.Column="2" Orientation="Horizontal" Spacing="16"
+                          VerticalAlignment="Bottom" Margin="0,0,0,6">
                 <CheckBox Content="Hide empty" IsChecked="{Binding HideEmpty, Mode=TwoWay}" />
                 <CheckBox Content="Hide full" IsChecked="{Binding HideFull, Mode=TwoWay}" />
               </StackPanel>
@@ -113,14 +126,15 @@
         </Border>
 
         <!-- header row -->
-        <Grid ColumnDefinitions="*,170,80,120,100,96" ColumnSpacing="12" Margin="14,4,14,0"
+        <Grid ColumnDefinitions="*,90,80,80,120,100,96" ColumnSpacing="12" Margin="14,4,14,0"
               IsVisible="{Binding HasResults}">
           <TextBlock Grid.Column="0" Classes="label" Text="NAME" />
-          <TextBlock Grid.Column="1" Classes="label" Text="ADDRESS" />
-          <TextBlock Grid.Column="2" Classes="label" Text="PLAYERS" />
-          <TextBlock Grid.Column="3" Classes="label" Text="MODE" />
-          <TextBlock Grid.Column="4" Classes="label" Text="SOURCE" />
-          <TextBlock Grid.Column="5" Classes="label" Text="" />
+          <TextBlock Grid.Column="1" Classes="label" Text="REGION" />
+          <TextBlock Grid.Column="2" Classes="label" Text="PING" />
+          <TextBlock Grid.Column="3" Classes="label" Text="PLAYERS" />
+          <TextBlock Grid.Column="4" Classes="label" Text="MODE" />
+          <TextBlock Grid.Column="5" Classes="label" Text="SOURCE" />
+          <TextBlock Grid.Column="6" Classes="label" Text="" />
         </Grid>
 
         <ItemsControl ItemsSource="{Binding Visible}">
@@ -133,9 +147,13 @@
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="models:ServerEntry">
               <Border Classes="row">
-                <Grid ColumnDefinitions="*,170,80,120,100,96" ColumnSpacing="12">
+                <Grid ColumnDefinitions="*,90,80,80,120,100,96" ColumnSpacing="12">
                   <StackPanel Grid.Column="0" Spacing="3">
                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14" />
+                    <!-- Only self-hosted rows have an address worth showing; a Steam row's used to
+                         read "Steam", which the SOURCE pill already says. -->
+                    <TextBlock Text="{Binding Endpoint}" Classes="mono dim" FontSize="11"
+                               IsVisible="{Binding Address, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                     <ItemsControl ItemsSource="{Binding Mods}">
                       <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -152,9 +170,15 @@
                     </ItemsControl>
                   </StackPanel>
 
-                  <TextBlock Grid.Column="1" Text="{Binding Endpoint}" Classes="mono muted"
+                  <TextBlock Grid.Column="1" Text="{Binding RegionText}" Classes="muted"
                              FontSize="12" VerticalAlignment="Center" />
-                  <TextBlock Grid.Column="2" VerticalAlignment="Center" FontSize="13">
+                  <TextBlock Grid.Column="2" Text="{Binding PingText}" FontSize="13"
+                             VerticalAlignment="Center"
+                             Classes.pingGood="{Binding PingIsGood}"
+                             Classes.pingFair="{Binding PingIsFair}"
+                             Classes.pingPoor="{Binding PingIsPoor}" />
+
+                  <TextBlock Grid.Column="3" VerticalAlignment="Center" FontSize="13">
                     <TextBlock.Text>
                       <MultiBinding StringFormat="{}{0}/{1}">
                         <Binding Path="Players" />
@@ -162,9 +186,9 @@
                       </MultiBinding>
                     </TextBlock.Text>
                   </TextBlock>
-                  <TextBlock Grid.Column="3" Text="{Binding GameMode}" Classes="muted"
+                  <TextBlock Grid.Column="4" Text="{Binding GameMode}" Classes="muted"
                              FontSize="13" VerticalAlignment="Center" />
-                  <Border Grid.Column="4" Classes="pill" VerticalAlignment="Center"
+                  <Border Grid.Column="5" Classes="pill" VerticalAlignment="Center"
                           HorizontalAlignment="Left">
                     <TextBlock Text="{Binding SourceLabel}" />
                   </Border>
@@ -172,7 +196,7 @@
                   <!-- Installs whatever this server runs, sets the rest aside, then launches
                        straight into the lobby. The command lives on the page, not the row, so it
                        is reached through the parent's DataContext. -->
-                  <Button Grid.Column="5" Classes="primary" Content="Play"
+                  <Button Grid.Column="6" Classes="primary" Content="Play"
                           HorizontalAlignment="Stretch" VerticalAlignment="Center"
                           Command="{Binding $parent[ItemsControl].((vm:ServersViewModel)DataContext).PlayCommand}"
                           CommandParameter="{Binding}"

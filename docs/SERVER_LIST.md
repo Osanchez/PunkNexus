@@ -72,6 +72,7 @@ key simply stops appearing in the browser, with nothing anywhere to warn you.
 | `maxp` | opt-in only | Player slots. |
 | `np` | opt-in only | Occupied player slots, counted by the host. |
 | `mods` | opt-in only | Comma-separated catalog ids (GUID fallback), capped at 12. See Part 3. |
+| `ploc` | opt-in only | The host's opaque Steam network location, for client-side ping estimation. |
 | `pw` | *nobody, yet* | Reserved. PunkMultiverse has no password feature, so every row reads as open. |
 
 Definitions live in `src/PunkNexus/Services/SteamLobbyKeys.cs` here and in
@@ -115,6 +116,50 @@ browser:
 - **Host migration** clears the previous host's listing on takeover. Lobby data outlives its author,
   so an inherited listing would otherwise advertise the old host's name and player count forever.
   The new host's own publish tick decides whether to relist.
+
+## Ping, without pinging anything
+
+The browser shows latency for every Steam session, and does it **without sending the host a single
+packet** — which matters, because pinging hosts from a browser is exactly the client-to-server
+traffic this design refuses, and because SDR hides host addresses on purpose so there is nothing to
+ping anyway.
+
+Valve continuously measures each client's latency to its own relay points of presence and encodes
+the result as an opaque *ping location*. Two such locations can be compared **offline** to estimate
+the route between them. So:
+
+1. The host publishes its location once, in the `ploc` lobby key.
+2. A browsing client calls `CheckPingDataUpToDate` to keep its own measurement fresh.
+3. Per row, `ParsePingLocationString` + `EstimatePingTimeFromLocalHost` gives an estimate locally.
+
+No packets to the host, no wait, and it works before joining. Rows sort by ping ascending.
+
+`—` is shown when there is no estimate: the host is on a mod build older than 0.1.248, Steam is
+still measuring on either side (the ordinary answer for the first seconds after start-up — refresh
+and it fills in), or Valve cannot estimate that route. **Unknown is never treated as bad**: a
+"max ping" filter keeps unresolved rows rather than hiding a joinable server behind a missing
+number.
+
+An estimate is exactly that. It is Valve's model of the relay route, not a measured round trip, and
+the real figure after joining can differ.
+
+### Why the published list carries no ping
+
+`pingMs` is computed locally and never read from `servers.json`. Latency is a property of the pair
+(this machine, that host), so a static document shared by every user cannot know it — a number from
+there would be somebody else's ping wearing yours. Self-hosted rows therefore show `—` today; see
+Part 2 for where a real answer would come from.
+
+## Region
+
+`region` is free text the host types (`Session.ServerRegion`), shown in its own column and offered
+as a filter built from whatever values are actually present. Nothing verifies it, and nothing
+should depend on it being truthful — it is a hint, and **ping is the number that actually decides
+whether a server is worth joining**.
+
+There is no automatic region: Steam exposes relay data-center codes rather than player-facing
+regions, and mapping `iad`/`lhr`/`sto` onto "NA-East"/"EU-West" would mean inventing and
+maintaining a table. Ping already answers the question region is a proxy for.
 
 ## Load
 
@@ -276,6 +321,19 @@ Shape — the one the client already parses:
 Every field except `name` is optional to the client — a missing `gameMode` just means that server
 never matches a game-mode filter. `mods` carries registry mod **ids**, which is what makes "servers
 running the mods I have" filterable client-side with no extra lookup.
+
+## Ping for self-hosted servers
+
+Unsolved, and deliberately left so. The Steam trick does not transfer: a dedicated server has no
+Steam presence, so there is no location blob to compare against. The honest options are
+
+- **probe from the client** — a small UDP query per row, which reintroduces exactly the
+  amplification and reconnaissance exposure this design avoids, or
+- **probe at join time only** — one query to the one server the user already chose, which is
+  harmless and worth doing when the join-time check below is built.
+
+The second is the right answer. Until then self-hosted rows show `—` for ping rather than a
+fabricated number, and `region` carries what little location information there is.
 
 ## The join-time check
 

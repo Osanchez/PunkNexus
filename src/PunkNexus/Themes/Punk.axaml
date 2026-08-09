@@ -245,6 +245,11 @@
     <Setter Property="TextBlock.Foreground" Value="{DynamicResource AccentHover}" />
   </Style>
 
+  <!-- Ping quality. Thresholds live in ServerEntry; these are only the colors. -->
+  <Style Selector="TextBlock.pingGood"><Setter Property="Foreground" Value="{DynamicResource Success}" /></Style>
+  <Style Selector="TextBlock.pingFair"><Setter Property="Foreground" Value="{DynamicResource Warning}" /></Style>
+  <Style Selector="TextBlock.pingPoor"><Setter Property="Foreground" Value="{DynamicResource Danger}" /></Style>
+
   <Style Selector="CheckBox">
     <Setter Property="Foreground" Value="{DynamicResource Text}" />
     <Setter Property="FontSize" Value="13" />

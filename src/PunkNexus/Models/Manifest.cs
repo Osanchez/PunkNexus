@@ -179,6 +179,28 @@ public sealed class ServerEntry
 
     [JsonPropertyName("lastSeenUtc")] public string? LastSeenUtc { get; set; }
 
+    /// <summary>
+    /// Estimated round-trip latency in milliseconds, or null when it could not be worked out —
+    /// the host published no location, Steam has not finished measuring locally, or the route is
+    /// one Valve cannot estimate. Null renders as "—" rather than as a misleading zero.
+    ///
+    /// Deliberately NOT deserialized from the published list. Latency is a property of the pair
+    /// (this machine, that host), so a static document shared by every user cannot know it — a
+    /// number from there would be somebody else's ping wearing yours. It is only ever computed
+    /// locally, which today means Steam sessions; see docs/SERVER_LIST.md for the UDP case.
+    /// </summary>
+    [JsonIgnore] public int? PingMs { get; set; }
+
+    public string PingText => PingMs is int ms ? $"{ms} ms" : "—";
+
+    // Thresholds are the ones a player feels rather than anything measured: under ~60ms plays
+    // local, under ~130ms plays fine, past that aiming starts to suffer.
+    public bool PingIsGood => PingMs is int g && g < 60;
+    public bool PingIsFair => PingMs is int f && f >= 60 && f < 130;
+    public bool PingIsPoor => PingMs is int p && p >= 130;
+
+    public string RegionText => string.IsNullOrWhiteSpace(Region) ? "—" : Region!;
+
     public bool IsSteam => Source == ServerSource.Steam;
 
     /// <summary>What the user sees in the address column, and for UDP what they can type to join.</summary>

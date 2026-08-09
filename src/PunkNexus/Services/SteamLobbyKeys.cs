@@ -33,6 +33,14 @@ public static class SteamLobbyKeys
     public const string Mods = "mods";           // comma-separated catalog ids, kept short on purpose
 
     /// <summary>
+    /// The host's opaque Steam network location. Turned into an estimated ping entirely locally —
+    /// Valve can compare two such locations offline, so showing latency for a session costs no
+    /// packets to the host and works before joining. Absent while Steam is still measuring on the
+    /// host's side, and on mod builds before 0.1.248.
+    /// </summary>
+    public const string PingLocation = "ploc";
+
+    /// <summary>
     /// "1" when a password is required. Reserved: PunkMultiverse has no password feature, so this
     /// is absent on every lobby today and every row reads as open.
     /// </summary>

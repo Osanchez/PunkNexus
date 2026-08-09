@@ -20,6 +20,7 @@ public sealed partial class ServersViewModel : ViewModelBase
 {
     private const string AnyMode = "Any mode";
     private const string AnyMod = "Any mod";
+    private const string AnyRegion = "Any region";
     public const string SourceAll = "All sources";
     public const string SourceSteam = "Steam";
     public const string SourceDedicated = "Self-hosted";
@@ -31,6 +32,7 @@ public sealed partial class ServersViewModel : ViewModelBase
     public ObservableCollection<ServerEntry> Visible { get; } = new();
     public ObservableCollection<string> GameModes { get; } = new() { AnyMode };
     public ObservableCollection<string> ModFilters { get; } = new() { AnyMod };
+    public ObservableCollection<string> Regions { get; } = new() { AnyRegion };
     public ObservableCollection<string> Sources { get; } = new() { SourceAll, SourceSteam, SourceDedicated };
 
     [ObservableProperty] private string _nameFilter = "";
@@ -38,6 +40,8 @@ public sealed partial class ServersViewModel : ViewModelBase
     [ObservableProperty] private string _minPlayersText = "";
     [ObservableProperty] private string _selectedGameMode = AnyMode;
     [ObservableProperty] private string _selectedMod = AnyMod;
+    [ObservableProperty] private string _selectedRegion = AnyRegion;
+    [ObservableProperty] private string _maxPingText = "";
     [ObservableProperty] private string _selectedSource = SourceAll;
     [ObservableProperty] private bool _hideEmpty;
     [ObservableProperty] private bool _hideFull;
@@ -72,6 +76,8 @@ public sealed partial class ServersViewModel : ViewModelBase
     partial void OnMinPlayersTextChanged(string value) => ApplyFilter();
     partial void OnSelectedGameModeChanged(string value) => ApplyFilter();
     partial void OnSelectedModChanged(string value) => ApplyFilter();
+    partial void OnSelectedRegionChanged(string value) => ApplyFilter();
+    partial void OnMaxPingTextChanged(string value) => ApplyFilter();
     partial void OnSelectedSourceChanged(string value) => ApplyFilter();
     partial void OnHideEmptyChanged(bool value) => ApplyFilter();
     partial void OnHideFullChanged(bool value) => ApplyFilter();
@@ -265,6 +271,8 @@ public sealed partial class ServersViewModel : ViewModelBase
         MinPlayersText = "";
         SelectedGameMode = AnyMode;
         SelectedMod = AnyMod;
+        SelectedRegion = AnyRegion;
+        MaxPingText = "";
         SelectedSource = SourceAll;
         HideEmpty = false;
         HideFull = false;
@@ -292,6 +300,17 @@ public sealed partial class ServersViewModel : ViewModelBase
         ModFilters.Add(AnyMod);
         foreach (var mod in mods) ModFilters.Add(mod);
         SelectedMod = AnyMod;
+
+        var regions = _all.Select(s => s.Region)
+            .Where(r => !string.IsNullOrWhiteSpace(r))
+            .Select(r => r!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(r => r, StringComparer.OrdinalIgnoreCase);
+
+        Regions.Clear();
+        Regions.Add(AnyRegion);
+        foreach (var region in regions) Regions.Add(region);
+        SelectedRegion = AnyRegion;
     }
 
     private void NotifyEmptyStates()
@@ -331,11 +350,22 @@ public sealed partial class ServersViewModel : ViewModelBase
         if (!string.Equals(SelectedMod, AnyMod, StringComparison.Ordinal))
             query = query.Where(s => s.Mods.Any(m => string.Equals(m, SelectedMod, StringComparison.OrdinalIgnoreCase)));
 
+        if (!string.Equals(SelectedRegion, AnyRegion, StringComparison.Ordinal))
+            query = query.Where(s => string.Equals((s.Region ?? "").Trim(), SelectedRegion, StringComparison.OrdinalIgnoreCase));
+
+        // A server whose ping could not be estimated is kept rather than hidden: an unknown ping is
+        // not a bad one, and silently dropping a joinable server would be worse than showing "—".
+        if (int.TryParse(MaxPingText, out var maxPing) && maxPing > 0)
+            query = query.Where(s => s.PingMs is not int ms || ms <= maxPing);
+
         if (HideEmpty) query = query.Where(s => s.Players > 0);
         if (HideFull) query = query.Where(s => s.MaxPlayers == 0 || s.Players < s.MaxPlayers);
 
         Visible.Clear();
-        foreach (var server in query.OrderByDescending(s => s.Players).ThenBy(s => s.Name, StringComparer.OrdinalIgnoreCase))
+        foreach (var server in query
+                     .OrderBy(s => s.PingMs ?? int.MaxValue)      // closest first; unknowns sink
+                     .ThenByDescending(s => s.Players)
+                     .ThenBy(s => s.Name, StringComparer.OrdinalIgnoreCase))
             Visible.Add(server);
 
         NotifyEmptyStates();

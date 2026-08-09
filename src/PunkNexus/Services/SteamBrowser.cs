@@ -129,6 +129,10 @@ public sealed class SteamBrowser : IDisposable
     {
         if (!_initialized) return Array.Empty<ServerEntry>();
 
+        // Kick off (or refresh) the local latency measurement before reading any lobby. It is what
+        // every per-row ping estimate is measured against, and it needs a moment on a cold start.
+        WarmPingData();
+
         var lobbies = await RequestLobbyListAsync(ct).ConfigureAwait(false);
         var servers = new List<ServerEntry>(lobbies.Count);
 
@@ -148,6 +152,53 @@ public sealed class SteamBrowser : IDisposable
 
         Log.Info($"Steam returned {servers.Count} listed session(s).");
         return servers;
+    }
+
+    /// <summary>
+    /// Asks Steam to make sure its own latency map is current. Returns false while the measurement
+    /// is still in flight, which is the ordinary answer for the first seconds after start-up — not
+    /// an error, just "ping columns will fill in on the next refresh".
+    /// </summary>
+    private static bool WarmPingData()
+    {
+        try
+        {
+            var ready = SteamNetworkingUtils.CheckPingDataUpToDate(600f);
+            if (!ready) Log.Info("Steam is still measuring network latency; pings fill in on the next refresh.");
+            return ready;
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"Could not refresh Steam ping data: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Estimated round-trip latency to a host that published its network location, or null.
+    ///
+    /// Nothing is sent to the host. Valve measures every client's latency to its own relay points
+    /// of presence and encodes the result as a location blob; two blobs can be compared offline to
+    /// estimate the route between them. So the estimate is local, instant, and works before joining
+    /// — which is what keeps browsing free of any client-to-server traffic.
+    /// </summary>
+    private static int? EstimatePing(string? hostLocation)
+    {
+        if (string.IsNullOrWhiteSpace(hostLocation)) return null;
+
+        try
+        {
+            if (!SteamNetworkingUtils.ParsePingLocationString(hostLocation, out var theirs)) return null;
+
+            // Negative means Steam cannot estimate this route (usually its own data is not ready).
+            var ms = SteamNetworkingUtils.EstimatePingTimeFromLocalHost(ref theirs);
+            return ms < 0 ? null : ms;
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"Could not estimate ping: {ex.Message}");
+            return null;
+        }
     }
 
     private Task<List<CSteamID>> RequestLobbyListAsync(CancellationToken ct)
@@ -266,6 +317,7 @@ public sealed class SteamBrowser : IDisposable
             GameVersion = Data(SteamLobbyKeys.GameVersion),
             Passworded = Data(SteamLobbyKeys.Passworded) == "1",
             Mods = mods,
+            PingMs = EstimatePing(Data(SteamLobbyKeys.PingLocation)),
             // Steam destroys a lobby when its last member leaves, so anything we can see right now
             // is live by construction. No timestamp to reason about.
             LastSeenUtc = DateTime.UtcNow.ToString("o"),

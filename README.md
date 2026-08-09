@@ -51,7 +51,9 @@ It is not expected to change often, if at all.
 
 Downloads are checked **before** anything is written:
 
-- **sha256**, when the mod publishes one. A mismatch blocks the install outright.
+- **sha256**, when the mod publishes one. A mismatch is reported as a rejection, logged as an
+  error, and requires you to press **Install anyway** — the button never says just "Install" for a
+  file that failed its checksum.
 - **The manifest inside the archive** — the packaged `mod.json` must claim the same mod id as the
   one you asked for, so a mislabelled or swapped archive is caught before extraction.
 - **Every archive entry**, against paths that escape the game folder.
@@ -70,8 +72,9 @@ downloaded, matched by hash, or whether it covers an earlier build.
 
 Two things this deliberately does not do:
 
-- **It doesn't block.** A checksum mismatch blocks an install, because that is a definite integrity
-  failure with no innocent explanation. A scan result is not that, so it's shown and never enforced.
+- **It doesn't gate anything.** A failed checksum is a definite integrity failure, so it turns the
+  dialog red and makes you type past an "Install anyway". A scan result carries no such certainty,
+  so it never changes the verdict or the button — it is one more line of evidence.
 - **It doesn't put a detection count in front of you as a verdict.** Mods are unsigned code whose
   job is patching a running game — precisely what heuristic antivirus engines look for — so a
   legitimate mod picking up a couple of detections is ordinary. Counts appear in the report, next to

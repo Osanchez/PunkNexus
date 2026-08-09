@@ -26,6 +26,9 @@ public sealed class InstallService
     private const string LoaderMarkerFile = "winhttp.dll";
     private const string PluginsRelative = "BepInEx/plugins";
 
+    /// <summary>Id the scan reports file the loader's own download under. See tools/virus-scan.py.</summary>
+    private const string LoaderScanId = "BepInEx";
+
     private static readonly JsonSerializerOptions ManifestJson = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -42,6 +45,16 @@ public sealed class InstallService
     /// service still refuses a failed verification — the prompt reports, it does not authorize.
     /// </summary>
     public Func<DownloadReport, Task<bool>>? ConfirmDownload { get; set; }
+
+    /// <summary>
+    /// The published virus scan index, when one has been loaded. Supplied as a hook rather than a
+    /// constructor dependency for the same reason as <see cref="ConfirmDownload"/>: the installer
+    /// works without it, and an unreachable reports file must never be able to stop an install.
+    ///
+    /// Returning null means "we do not know", which is reported differently from "no scan exists" —
+    /// an offline client claiming a mod is unscanned would be inventing information.
+    /// </summary>
+    public Func<ScanIndex?>? PublishedScans { get; set; }
 
     public InstallService(HttpClient http, ReleaseResolver resolver, InstallStateStore store)
     {
@@ -76,7 +89,7 @@ public sealed class InstallService
         var zip = await DownloadAsync(asset, progress, ct).ConfigureAwait(false);
         try
         {
-            var report = await VerifyAsync(zip, asset, loader.Sha256, loader.Name, null, progress, ct)
+            var report = await VerifyAsync(zip, asset, loader.Sha256, LoaderScanId, loader.Name, null, progress, ct)
                 .ConfigureAwait(false);
 
             if (!await ConfirmAsync(report).ConfigureAwait(false)) return false;
@@ -121,7 +134,7 @@ public sealed class InstallService
         var zip = await DownloadAsync(asset, progress, ct).ConfigureAwait(false);
         try
         {
-            var report = await VerifyAsync(zip, asset, manifest.Sha256, manifest.Name, manifest, progress, ct)
+            var report = await VerifyAsync(zip, asset, manifest.Sha256, manifest.Id, manifest.Name, manifest, progress, ct)
                 .ConfigureAwait(false);
 
             if (!await ConfirmAsync(report).ConfigureAwait(false)) return false;
@@ -169,13 +182,14 @@ public sealed class InstallService
 
     /// <summary>
     /// Everything checkable between "bytes arrived" and "files written": the publisher's checksum,
-    /// and the manifest packaged inside the archive. Runs before extraction so a bad archive costs
-    /// the user nothing.
+    /// the manifest packaged inside the archive, and whether a published virus scan covers these
+    /// exact bytes. Runs before extraction so a bad archive costs the user nothing.
     /// </summary>
     private async Task<DownloadReport> VerifyAsync(
         string zipPath,
         ResolvedAsset asset,
         string? expectedSha256,
+        string modId,
         string modName,
         ModManifest? published,
         IProgress<InstallProgress>? progress,
@@ -186,12 +200,15 @@ public sealed class InstallService
         var failed = false;
         var unverified = false;
 
+        // Hashed unconditionally, not only when a checksum was published: the scan report is filed
+        // under the scanner's own hash of the file, so without this there is no way to say whether
+        // a report describes the download in hand. Costs microseconds on a 20 KB zip.
+        progress?.Report(new InstallProgress("Verifying checksum"));
+        var actual = await Sha256Async(zipPath, ct).ConfigureAwait(false);
+
         // ---- publisher checksum
         if (!string.IsNullOrWhiteSpace(expectedSha256))
         {
-            progress?.Report(new InstallProgress("Verifying checksum"));
-            var actual = await Sha256Async(zipPath, ct).ConfigureAwait(false);
-
             if (actual.Equals(expectedSha256!.Trim(), StringComparison.OrdinalIgnoreCase))
             {
                 details.Add(new DialogDetail($"SHA-256 matches the published checksum ({Short(actual)})", true));
@@ -258,6 +275,14 @@ public sealed class InstallService
             }
         }
 
+        // ---- the published virus scan
+        //
+        // Evidence, never a gate. The checksum above blocks because a mismatch is a definite
+        // integrity failure with no innocent reading; a scan result has no such property — mods
+        // are unsigned code that patches a running game, which heuristic engines flag routinely.
+        // So nothing below touches `failed` or `unverified`. It reports and gets out of the way.
+        details.AddRange(ScanDetails(modId, actual));
+
         var verdict = failed ? DownloadVerdict.Failed
             : unverified ? DownloadVerdict.Unverified
             : DownloadVerdict.Verified;
@@ -278,6 +303,54 @@ public sealed class InstallService
         };
 
         return new DownloadReport(modName, asset.FileName, size, verdict, headline, message, details);
+    }
+
+    /// <summary>
+    /// Whether a published scan covers the exact bytes just downloaded, in one or two lines.
+    ///
+    /// Three genuinely different answers, and conflating any two of them would mislead: the report
+    /// covers this file, the report covers a different build of this mod, or no report exists. A
+    /// fourth case — the reports file could not be loaded at all — says nothing rather than
+    /// claiming the mod is unscanned.
+    /// </summary>
+    private IEnumerable<DialogDetail> ScanDetails(string modId, string actualSha256)
+    {
+        var index = PublishedScans?.Invoke();
+        if (index is null) yield break;
+
+        var scan = index.Find(modId);
+
+        if (scan is null || !scan.IsComplete)
+        {
+            yield return new DialogDetail(
+                "No virus scan has been published for this download yet — that is normal for a " +
+                "new or just-updated mod, and says nothing about it either way");
+            yield break;
+        }
+
+        if (!string.Equals(scan.Sha256, actualSha256, StringComparison.OrdinalIgnoreCase))
+        {
+            var which = string.IsNullOrWhiteSpace(scan.ModVersion) ? "an earlier build" : $"v{scan.ModVersion}";
+            yield return new DialogDetail(
+                $"The published scan covers {which}, not this file. This exact download has not " +
+                "been scanned yet");
+            yield break;
+        }
+
+        if (scan.Detections == 0)
+        {
+            yield return new DialogDetail(
+                $"Virus scan: this exact file was scanned {scan.ScannedOn} — none of " +
+                $"{scan.EnginesTotal} engines flagged it", true);
+            yield break;
+        }
+
+        // Neutral marker and the explanation on the same screen. A count on its own, next to a red
+        // cross, is how honest mods get mistaken for malware.
+        yield return new DialogDetail(
+            $"Virus scan: this exact file was scanned {scan.ScannedOn} — {scan.Detections} of " +
+            $"{scan.EnginesTotal} engines flagged it. Unsigned mods commonly trip heuristic " +
+            "detection; this does not block the install");
     }
 
     /// <summary>

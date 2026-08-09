@@ -25,6 +25,7 @@ public sealed partial class ModRowViewModel : ViewModelBase
 
     [ObservableProperty] private ModManifest? _published;
     [ObservableProperty] private ModManifest? _installed;
+    [ObservableProperty] private ScanRecord? _scan;
     [ObservableProperty] private CompatibilityResult? _compatibility;
     [ObservableProperty] private bool _isResolving = true;
     [ObservableProperty] private bool _isBusy;
@@ -104,6 +105,38 @@ public sealed partial class ModRowViewModel : ViewModelBase
     /// problems.
     /// </summary>
     public bool ShowCompatibilityBadge => !IsResolving && Compatibility is not null;
+
+    // ------------------------------------------------------------ virus scan
+    //
+    // The row states COVERAGE and nothing else — was this mod's file scanned, and which build.
+    // Detection counts live in the modal, where the explanation of why an honest BepInEx mod trips
+    // heuristic engines is on the same screen. A "2 flags" pill in a list has no room for that
+    // context, and a number without its context is how a legitimate mod gets read as malware.
+
+    /// <summary>The scan index was read successfully, so this row's scan state is knowable.</summary>
+    [ObservableProperty] private bool _scansAvailable;
+
+    public bool ScanIsComplete => Scan?.IsComplete == true;
+
+    /// <summary>The scan describes a build other than the one currently published.</summary>
+    public bool ScanIsForOlderBuild =>
+        ScanIsComplete &&
+        !string.IsNullOrWhiteSpace(PublishedVersion) &&
+        !string.IsNullOrWhiteSpace(Scan!.ModVersion) &&
+        !string.Equals(Scan.ModVersion, PublishedVersion, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Hidden when the reports could not be read: silence beats a wrong claim.</summary>
+    public bool ShowScanBadge => ScansAvailable;
+
+    public string ScanBadge =>
+        !ScanIsComplete ? "not scanned yet"
+        : ScanIsForOlderBuild ? $"scanned v{Scan!.ModVersion}"
+        : "scanned";
+
+    public string ScanTooltip =>
+        !ScanIsComplete
+            ? "No virus scan has been published for this mod yet. Click for details."
+            : $"{Scan!.Coverage}. Click for the full report.";
 
     public string CompatibilityText => Compatibility?.Summary ?? "";
 
@@ -322,6 +355,18 @@ public sealed partial class ModRowViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Opens the mod's latest scan report. Bound to the row body rather than to a dedicated
+    /// button: "select a mod to see what is known about it" is the natural gesture, and the
+    /// install and remove buttons keep their own hit areas beside it.
+    /// </summary>
+    [RelayCommand]
+    private async Task ShowScanReportAsync()
+    {
+        var request = ScanDialog.Build(Name, Scan, PublishedVersion, ScansAvailable);
+        await _services.Dialogs.ShowAsync(request).ConfigureAwait(true);
+    }
+
     [RelayCommand]
     private void DismissError() => Error = null;
 
@@ -345,8 +390,15 @@ public sealed partial class ModRowViewModel : ViewModelBase
         OnPropertyChanged(nameof(CompatibilityBadge));
         OnPropertyChanged(nameof(VersionLabel));
         OnPropertyChanged(nameof(StatusLabel));
+        OnPropertyChanged(nameof(ScanIsComplete));
+        OnPropertyChanged(nameof(ScanIsForOlderBuild));
+        OnPropertyChanged(nameof(ShowScanBadge));
+        OnPropertyChanged(nameof(ScanBadge));
+        OnPropertyChanged(nameof(ScanTooltip));
     }
 
+    partial void OnScanChanged(ScanRecord? value) => NotifyDerived();
+    partial void OnScansAvailableChanged(bool value) => NotifyDerived();
     partial void OnPublishedChanged(ModManifest? value) => NotifyDerived();
     partial void OnInstalledChanged(ModManifest? value) => NotifyDerived();
     partial void OnCompatibilityChanged(CompatibilityResult? value) => NotifyDerived();

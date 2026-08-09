@@ -1,0 +1,111 @@
+name: Virus scan catalog
+
+# Scans every downloadable artifact in the catalog with VirusTotal and commits a report per mod
+# into reports/. The client reads reports/index.json to show what was scanned, and matches the
+# report's sha256 against the file it just downloaded at install time.
+#
+# Runs on a schedule rather than on release, because the mods live in other repositories — this
+# repo has no way to know a developer shipped a new build except by looking. The tool downloads
+# each artifact, hashes it itself, and only spends a VirusTotal request when that hash differs
+# from the one in the stored report. An unchanged catalog therefore costs zero API quota.
+#
+# BUDGET, BEFORE YOU CHANGE THE CRON
+# The free VirusTotal tier allows 4 lookups/minute, 500/day and 15,500/month. In steady state an
+# unchanged mod costs one lookup, so a full daily pass is 17 x 30 = ~510 lookups/month against
+# 15,500 — comfortable. Hourly would be ~12,200 before counting uploads for new builds, and does
+# not fit. Redo that multiplication if you touch the schedule.
+on:
+  schedule:
+    - cron: '17 4 * * *'      # daily, off the hour so it is not queued behind everyone else's
+  # Any branch, not just main: a change to the scanner or the catalog should be exercised against
+  # the real API before it is merged, and reports are committed back to whichever branch ran.
+  push:
+    branches: ['**']
+    paths:
+      - 'manifest/**'          # a newly listed mod should get a report without waiting a day
+      - 'tools/virus-scan.py'
+      - '.github/workflows/virus-scan.yml'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Rescan every mod, even when its hash has not changed'
+        type: boolean
+        default: false
+      only:
+        description: 'Comma-separated mod ids to scan (blank = the whole catalog)'
+        type: string
+        default: ''
+
+permissions:
+  contents: write              # the reports are committed back to main
+
+# Two runs writing reports/ would race each other's commits. The schedule and a manifest push can
+# easily overlap, so they queue instead of cancelling — a cancelled run wastes VirusTotal quota
+# that has already been spent.
+concurrency:
+  group: virus-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true   # the commit-back step below pushes with these
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Fail here with something actionable rather than 4/70 confusing HTTP 401s later.
+      - name: Check the API key is configured
+        env:
+          VT_API_KEY: ${{ secrets.VT_API_KEY }}
+        run: |
+          if [ -z "$VT_API_KEY" ]; then
+            echo "::error::VT_API_KEY secret is not set. Create a free API key at"
+            echo "::error::https://www.virustotal.com/gui/my-apikey and add it under"
+            echo "::error::Settings > Secrets and variables > Actions as VT_API_KEY."
+            exit 1
+          fi
+
+      - name: Scan changed artifacts
+        env:
+          VT_API_KEY: ${{ secrets.VT_API_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}   # lifts the GitHub API rate limit while resolving releases
+          FORCE: ${{ inputs.force }}
+          ONLY: ${{ inputs.only }}
+        run: |
+          # Built with if-blocks, not `[ x ] && args=...`: the step runs under `bash -e`, where a
+          # trailing test that evaluates false is the last command and fails the whole step.
+          args=""
+          if [ "$FORCE" = "true" ]; then args="$args --force"; fi
+          if [ -n "$ONLY" ]; then args="$args --only $ONLY"; fi
+          python3 tools/virus-scan.py $args
+
+      # always(): the scanner exits non-zero when it ran out of quota before reaching every entry,
+      # and the reports it did produce are still real results worth keeping. The job stays red so
+      # the incomplete pass is visible.
+      - name: Commit reports
+        if: always()
+        run: |
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          # The folder is absent until the first successful run, and `git add` on a missing path
+          # is an error — which under always() would turn "the key was wrong" into two failures.
+          if [ -d reports ]; then git add reports; fi
+          if git diff --cached --quiet; then
+            echo 'No scan results changed; nothing to commit.'
+            exit 0
+          fi
+          # [skip ci] because this pushes to a branch that has workflows watching it. Nothing here
+          # would loop on its own — this workflow's push trigger only watches manifest/ and tools/,
+          # and build.yml ignores reports/ — but the marker keeps that from depending on two path
+          # filters staying right forever.
+          git commit -m 'ci: update virus scan reports [skip ci]'
+          # Back to the branch that ran, never hard-coded to main: a scanner change tested on a
+          # feature branch must not push results into the release branch.
+          git push origin "HEAD:${GITHUB_REF_NAME}"

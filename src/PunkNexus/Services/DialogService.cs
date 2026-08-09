@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -25,8 +26,17 @@ public sealed class DialogRequest
     /// <summary>When null the dialog has a single button and cannot be refused.</summary>
     public string? DeclineText { get; init; }
 
+    /// <summary>
+    /// An optional "go and read the source" button. Added for the virus scan report, where the
+    /// honest thing is to hand the user the underlying VirusTotal page rather than ask them to
+    /// take this window's summary of it on faith.
+    /// </summary>
+    public string? LinkText { get; init; }
+    public string? LinkUrl { get; init; }
+
     public bool HasDecline => !string.IsNullOrWhiteSpace(DeclineText);
     public bool HasDetails => Details.Count > 0;
+    public bool HasLink => !string.IsNullOrWhiteSpace(LinkUrl) && !string.IsNullOrWhiteSpace(LinkText);
 
     public bool IsSuccess => Kind == DialogKind.Success;
     public bool IsWarning => Kind == DialogKind.Warning;
@@ -63,6 +73,26 @@ public sealed partial class DialogService : ObservableObject
             Current = null;
             _pending = null;
             _gate.Release();
+        }
+    }
+
+    /// <summary>
+    /// Opens the current dialog's link in the user's browser, leaving the dialog open — reading
+    /// the source material should not cost them the window they were reading.
+    /// </summary>
+    [RelayCommand]
+    private void OpenLink()
+    {
+        var url = Current?.LinkUrl;
+        if (string.IsNullOrWhiteSpace(url)) return;
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"Could not open {url}: {ex.Message}");
         }
     }
 

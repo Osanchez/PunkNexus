@@ -31,18 +31,50 @@ public sealed class ManifestService
     }
 
     public Task<ManifestResult<ModsRegistry>> LoadRegistryAsync(bool forceRefresh, CancellationToken ct) =>
-        LoadAsync<ModsRegistry>("mods.json", "PunkNexus.Fallback.mods.json", forceRefresh, ct);
+        LoadAsync<ModsRegistry>(ManifestBase, "mods.json", "mods.json", "PunkNexus.Fallback.mods.json", forceRefresh, ct);
 
     public Task<ManifestResult<ServersManifest>> LoadServersAsync(bool forceRefresh, CancellationToken ct) =>
-        LoadAsync<ServersManifest>("servers.json", "PunkNexus.Fallback.servers.json", forceRefresh, ct);
+        LoadAsync<ServersManifest>(ManifestBase, "servers.json", "servers.json", "PunkNexus.Fallback.servers.json", forceRefresh, ct);
+
+    /// <summary>
+    /// The virus scan reports for the whole catalog, in one request. One index rather than one
+    /// file per mod: the list refreshes as a unit, and eighteen round trips to render a badge
+    /// would make the Mods tab slower for something that is supporting evidence, not the point.
+    ///
+    /// No embedded fallback, unlike the catalog above. A scan report baked into the exe would age
+    /// into a claim about files that are no longer the ones being downloaded, and a stale scan
+    /// result is worse than none: "not scanned yet" is honest, a months-old verdict is not.
+    /// </summary>
+    public Task<ManifestResult<ScanIndex>> LoadScanIndexAsync(bool forceRefresh, CancellationToken ct) =>
+        LoadAsync<ScanIndex>(ReportsBase, "index.json", "scan-index.json", null, forceRefresh, ct);
+
+    private string ManifestBase => _settings.Current.ManifestBaseUrl.TrimEnd('/');
+
+    /// <summary>
+    /// Reports sit beside the manifest in the same repository, so their location is derived from
+    /// the configured manifest URL rather than being a second setting to keep in step. Someone who
+    /// points the client at their own catalog gets their own reports with it, automatically.
+    /// </summary>
+    private string ReportsBase
+    {
+        get
+        {
+            var manifest = ManifestBase;
+            var cut = manifest.LastIndexOf('/');
+            return cut > 0 ? $"{manifest[..cut]}/reports" : $"{manifest}/../reports";
+        }
+    }
 
     private async Task<ManifestResult<T>> LoadAsync<T>(
-        string fileName, string embeddedName, bool forceRefresh, CancellationToken ct)
+        string baseUrl, string fileName, string cacheName, string? embeddedName,
+        bool forceRefresh, CancellationToken ct)
         where T : new()
     {
-        var baseUrl = _settings.Current.ManifestBaseUrl.TrimEnd('/');
         var url = $"{baseUrl}/{fileName}";
-        var cacheFile = Path.Combine(AppPaths.CacheDir, fileName);
+
+        // Cached under its own name rather than the URL's: two documents in different folders can
+        // share a file name, and reports/index.json is exactly that case.
+        var cacheFile = Path.Combine(AppPaths.CacheDir, cacheName);
 
         // Cache-buster: raw.githubusercontent caches aggressively and a stale catalog looks like
         // a broken refresh button.
@@ -87,6 +119,9 @@ public sealed class ManifestService
             {
                 Log.Warn($"Cached {fileName} is unreadable: {cacheEx.Message}");
             }
+
+            if (embeddedName is null)
+                return new ManifestResult<T>(new T(), ManifestOrigin.Embedded, null);
 
             var embedded = ReadEmbedded<T>(embeddedName);
             return new ManifestResult<T>(embedded ?? new T(), ManifestOrigin.Embedded,

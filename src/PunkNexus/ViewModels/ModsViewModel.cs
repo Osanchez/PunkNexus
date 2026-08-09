@@ -16,6 +16,13 @@ public sealed partial class ModsViewModel : ViewModelBase
 
     private LoaderEntry? _loader;
 
+    /// <summary>
+    /// The published scan index, or null until one has been fetched. Null is meaningful: it is the
+    /// difference between "no scan exists" and "we could not find out", and the install dialog
+    /// says nothing at all in the second case rather than implying the first.
+    /// </summary>
+    private ScanIndex? _scans;
+
     public ObservableCollection<ModRowViewModel> Visible { get; } = new();
     public ObservableCollection<string> Categories { get; } = new() { AllCategories };
 
@@ -34,6 +41,10 @@ public sealed partial class ModsViewModel : ViewModelBase
     {
         _services = services;
         _session = session;
+
+        // The installer reports on the scan alongside the checksum. It asks through a hook so that
+        // a missing or unreachable reports file can never hold up an install.
+        _services.Installer.PublishedScans = () => _scans;
 
         // Both halves of NeedsLoader live on the session. Watching only LoaderInstalled misses the
         // first entry into the shell: the path arrives, but LoaderInstalled is set false-to-false
@@ -88,9 +99,20 @@ public sealed partial class ModsViewModel : ViewModelBase
             _loader = result.Value.Loader;
             Notice = result.Warning;
 
+            // One request for the whole catalog's scan reports, before the rows are built, so a
+            // row never briefly claims "not scanned yet" only to correct itself a moment later.
+            _scans = await LoadScansAsync().ConfigureAwait(true);
+
             _all.Clear();
             foreach (var entry in result.Value.Mods.Where(m => m.Enabled))
-                _all.Add(new ModRowViewModel(entry, _services, _session, ReportAsync));
+            {
+                var row = new ModRowViewModel(entry, _services, _session, ReportAsync)
+                {
+                    ScansAvailable = _scans is not null,
+                    Scan = _scans?.Find(entry.Id),
+                };
+                _all.Add(row);
+            }
 
             var byId = _all.ToDictionary(m => m.Id, StringComparer.OrdinalIgnoreCase);
             foreach (var row in _all)
@@ -242,6 +264,34 @@ public sealed partial class ModsViewModel : ViewModelBase
             LoaderBusyText = null;
             RefreshSwapState();
             RefreshInstalledState();
+        }
+    }
+
+    /// <summary>
+    /// Fetches the scan index, treating any failure as "unknown" rather than as "unscanned".
+    /// Nothing in the client depends on it, so a failure here is silent by design — a red banner
+    /// about a missing reports file would tell the user something they cannot act on.
+    /// </summary>
+    private async Task<ScanIndex?> LoadScansAsync()
+    {
+        try
+        {
+            var result = await _services.Manifests
+                .LoadScanIndexAsync(forceRefresh: true, CancellationToken.None)
+                .ConfigureAwait(true);
+
+            Log.Info($"Loaded {result.Value.Scans.Count} scan report(s) ({result.Origin}).");
+
+            // Embedded is the "everything else failed" tier, and there is deliberately no scan
+            // index compiled into the exe — so reaching it means the file could not be read at
+            // all, which is unknown, not empty. An index that genuinely lists nothing (before the
+            // first scheduled run) arrives over the network and is kept.
+            return result.Origin == ManifestOrigin.Embedded ? null : result.Value;
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"Could not load virus scan reports: {ex.Message}");
+            return null;
         }
     }
 

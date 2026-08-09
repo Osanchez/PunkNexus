@@ -108,6 +108,9 @@
             <Border Background="{DynamicResource Base}" BorderBrush="{DynamicResource Border}"
                     BorderThickness="1" CornerRadius="6" Padding="14,12"
                     IsVisible="{Binding Dialogs.Current.HasDetails}">
+              <!-- Capped and scrollable: a scan that a dozen engines flagged would otherwise push
+                   the buttons off the bottom of the screen. -->
+              <ScrollViewer MaxHeight="300" HorizontalScrollBarVisibility="Disabled">
               <ItemsControl ItemsSource="{Binding Dialogs.Current.Details}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="svc:DialogDetail">
@@ -118,20 +121,35 @@
                                  Foreground="{DynamicResource Danger}" IsVisible="{Binding IsBad}" />
                       <TextBlock Grid.Column="0" Text="•" FontWeight="Bold"
                                  Foreground="{DynamicResource TextDim}" IsVisible="{Binding IsNeutral}" />
-                      <TextBlock Grid.Column="1" Text="{Binding Text}" FontSize="12.5" />
+                      <!-- Wrapped: the scan report's detail lines carry the context that keeps a
+                           detection count from reading as a verdict, and a clipped explanation
+                           would be worse than none. -->
+                      <TextBlock Grid.Column="1" Text="{Binding Text}" FontSize="12.5"
+                                 TextWrapping="Wrap" />
                     </Grid>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
+              </ScrollViewer>
             </Border>
 
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
-              <Button Content="{Binding Dialogs.Current.DeclineText}"
-                      IsVisible="{Binding Dialogs.Current.HasDecline}"
-                      Command="{Binding Dialogs.DeclineCommand}" MinWidth="110" />
-              <Button Classes="primary" Content="{Binding Dialogs.Current.AcceptText}"
-                      Command="{Binding Dialogs.AcceptCommand}" MinWidth="130" />
-            </StackPanel>
+            <Grid ColumnDefinitions="Auto,*,Auto">
+              <!-- Kept apart from the buttons that dismiss the dialog: it goes somewhere else
+                   rather than answering the question, and the scan report is only credible if the
+                   user can read the source for themselves. -->
+              <Button Grid.Column="0" Classes="ghost"
+                      Content="{Binding Dialogs.Current.LinkText}"
+                      IsVisible="{Binding Dialogs.Current.HasLink}"
+                      Command="{Binding Dialogs.OpenLinkCommand}" />
+
+              <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10">
+                <Button Content="{Binding Dialogs.Current.DeclineText}"
+                        IsVisible="{Binding Dialogs.Current.HasDecline}"
+                        Command="{Binding Dialogs.DeclineCommand}" MinWidth="110" />
+                <Button Classes="primary" Content="{Binding Dialogs.Current.AcceptText}"
+                        Command="{Binding Dialogs.AcceptCommand}" MinWidth="130" />
+              </StackPanel>
+            </Grid>
           </StackPanel>
         </StackPanel>
       </Border>

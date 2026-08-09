@@ -10,6 +10,7 @@ on:
       - '.gitignore'
       - 'LICENSE'
       - 'manifest/**'      # the catalog is read at runtime from the repo — it needs no new build
+      - 'reports/**'       # ditto for the virus scan reports, which CI rewrites on a schedule
   pull_request:
   workflow_dispatch:
 

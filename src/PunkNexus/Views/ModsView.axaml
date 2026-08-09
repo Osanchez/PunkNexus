@@ -136,7 +136,15 @@
               <Border Classes="row">
                 <StackPanel Spacing="10">
 
-                  <Grid ColumnDefinitions="52,*,Auto" ColumnSpacing="16">
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+
+                    <!-- Selecting a mod opens its virus scan report. The whole body of the row is
+                         the target — "select the mod to see what is known about it" is the natural
+                         gesture — while Install and Remove keep their own hit areas to the right. -->
+                    <Button Grid.Column="0" Classes="rowSelect"
+                            Command="{Binding ShowScanReportCommand}"
+                            ToolTip.Tip="{Binding ScanTooltip}">
+                    <Grid ColumnDefinitions="52,*" ColumnSpacing="16">
 
                     <!-- icon, or a stable monogram tile when the mod has none -->
                     <Panel Grid.Column="0" Width="52" Height="52" VerticalAlignment="Top">
@@ -181,6 +189,15 @@
                                 ToolTip.Tip="The version of this mod you have installed does not officially confirm it supports the game version you are running, and has not been confirmed working.">
                           <TextBlock Text="outdated" />
                         </Border>
+
+                        <!-- Coverage only: whether this mod's file was scanned, and which build.
+                             Detection counts belong in the modal, next to the explanation of why
+                             an honest BepInEx mod trips heuristic engines — a bare number in a
+                             list has nowhere to put that, and reads as a verdict. -->
+                        <Border Classes="pill" VerticalAlignment="Center"
+                                IsVisible="{Binding ShowScanBadge}">
+                          <TextBlock Text="{Binding ScanBadge}" />
+                        </Border>
                       </StackPanel>
 
                       <TextBlock FontSize="12" Classes="dim">
@@ -196,8 +213,10 @@
                                  MaxLines="3" TextTrimming="CharacterEllipsis" />
 
                     </StackPanel>
+                    </Grid>
+                    </Button>
 
-                    <StackPanel Grid.Column="2" Spacing="8" VerticalAlignment="Top" MinWidth="128">
+                    <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Top" MinWidth="128">
                       <Button Classes="primary" Content="Install"
                               HorizontalAlignment="Stretch"
                               Command="{Binding InstallCommand}"

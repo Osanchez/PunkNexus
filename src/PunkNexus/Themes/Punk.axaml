@@ -157,6 +157,30 @@
     <Setter Property="Foreground" Value="{DynamicResource Text}" />
   </Style>
 
+  <!-- The body of a mod row, made selectable without looking like a button: the row must still
+       read as a row. Only the hover tint and the cursor say it can be clicked. -->
+  <Style Selector="Button.rowSelect">
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    <Setter Property="VerticalContentAlignment" Value="Top" />
+  </Style>
+  <Style Selector="Button.rowSelect /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="0" />
+  </Style>
+  <Style Selector="Button.rowSelect:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource SurfaceAlt}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
+  <Style Selector="Button.rowSelect:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource SurfaceHover}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
+
   <!-- Top navigation: a flat strip with an accent underline on the active tab. -->
   <Style Selector="RadioButton.tab">
     <Setter Property="Cursor" Value="Hand" />

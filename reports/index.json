@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedUtc": "2026-08-09T16:57:44Z",
+  "generatedUtc": "2026-08-09T17:01:44Z",
   "complete": true,
   "unreached": [],
   "scans": [
@@ -199,10 +199,10 @@
       "sizeBytes": 7480,
       "modVersion": "1.0.0",
       "declaredMatches": true,
-      "scannedUtc": "2026-08-09T16:47:39Z",
-      "analyzedUtc": null,
-      "status": "queued",
-      "enginesTotal": 0,
+      "scannedUtc": "2026-08-09T17:01:42Z",
+      "analyzedUtc": "2026-08-09T16:45:38Z",
+      "status": "completed",
+      "enginesTotal": 67,
       "detections": 0,
       "detectedBy": [],
       "permalink": "https://www.virustotal.com/gui/file/7a9b8076d5df8376fdebdf540d21986666f6d49ab499269e3b8dcf367644130e",

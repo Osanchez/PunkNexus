@@ -103,7 +103,7 @@ jobs:
 
       - name: Publish Release
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.ver.outputs.tag }}
           name: PUNK Nexus ${{ steps.ver.outputs.tag }}

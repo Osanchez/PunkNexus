@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using Avalonia;
 using Avalonia.Controls;
@@ -7,6 +8,19 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 
 namespace PunkNexus.Services;
+
+/// <summary>
+/// Implemented by the shell so the harness can put the update overlay on screen without a real
+/// update happening. Declared here, in Services, so the harness keeps knowing nothing about the
+/// view models -- it asks the window's DataContext whether it happens to support this, and does
+/// nothing if it does not.
+/// </summary>
+public interface IUpdateOverlayPreview
+{
+    /// <summary>Show <paramref name="stage"/> at <paramref name="fraction"/> (0-1, null for an
+    /// indeterminate bar). A null stage closes the overlay.</summary>
+    void PreviewUpdateOverlay(string? stage, double? fraction);
+}
 
 /// <summary>
 /// A file-driven remote control for this window, so the Play flow can be tested without a human
@@ -151,6 +165,7 @@ public sealed class DiagHarness
             case "settext": Out(SetText(rest)); return;
             case "screenshot": Out(Screenshot(rest)); return;
             case "state": Out(State()); return;
+            case "updateui": Out(PreviewUpdate(rest)); return;
             case "quit":
                 Out("quit: closing");
                 Dispatcher.UIThread.Post(() => _window.Close());
@@ -212,12 +227,51 @@ public sealed class DiagHarness
                .Where(c => c is Button or CheckBox or TextBox or TabItem or ComboBox or ListBoxItem);
 
     /// <summary>
+    /// Put the update overlay on screen without a real update. "updateui off" closes it; anything
+    /// else is a stage line, optionally followed by a percentage ("updateui Downloading 42").
+    ///
+    /// This exists because the update screen was, by construction, the one thing in the app that
+    /// could not be looked at without publishing a release to trigger it -- which is a poor way to
+    /// find out a bar renders wrong.
+    /// </summary>
+    private string PreviewUpdate(string rest)
+    {
+        if (_window.DataContext is not IUpdateOverlayPreview preview)
+            return "updateui: this window does not support the update overlay";
+
+        if (string.Equals(rest, "off", StringComparison.OrdinalIgnoreCase) || rest.Length == 0)
+        {
+            preview.PreviewUpdateOverlay(null, null);
+            return "updateui: closed";
+        }
+
+        // Trailing number is a percentage; without one the bar stays indeterminate.
+        double? fraction = null;
+        var stage = rest;
+        var lastSpace = rest.LastIndexOf(' ');
+        if (lastSpace > 0
+            && double.TryParse(rest[(lastSpace + 1)..], NumberStyles.Float, CultureInfo.InvariantCulture, out var percent)
+            && percent is >= 0 and <= 100)
+        {
+            fraction = percent / 100d;
+            stage = rest[..lastSpace].TrimEnd();
+        }
+
+        preview.PreviewUpdateOverlay(stage, fraction);
+        return $"updateui: \"{stage}\"" + (fraction is null ? " (indeterminate)" : $" at {fraction * 100:0}%");
+    }
+
+    /// <summary>
     /// The named overlay, but only while it is actually on screen. Both modals are always in the
     /// tree and switch on IsVisible, so presence proves nothing on its own.
     /// </summary>
     private Control? VisibleOverlay(string name) =>
         _window.GetVisualDescendants().OfType<Control>()
                .FirstOrDefault(c => c.Name == name && c.IsEffectivelyVisible);
+
+    /// <summary>The text of a named TextBlock inside a subtree, or null if it is not there.</summary>
+    private static string? TextOfNamed(Control root, string name) =>
+        root.GetVisualDescendants().OfType<TextBlock>().FirstOrDefault(t => t.Name == name)?.Text;
 
     /// <summary>The title of the open modal, or null when none is showing.</summary>
     private string? OpenDialogTitle()
@@ -238,14 +292,12 @@ public sealed class DiagHarness
         // the one state in which the window is least able to do anything else.
         if (VisibleOverlay("UpdateOverlay") is { } updating)
         {
-            var lines = updating.GetVisualDescendants().OfType<TextBlock>()
-                .Select(t => t.Text)
-                .Where(t => !string.IsNullOrWhiteSpace(t))
-                .ToList();
-            // Declaration order: title, then the stage line. Buttons are empty because it has
-            // none -- there is nothing to answer, only something to wait for.
-            return $"dialog: UPDATING \"{lines.FirstOrDefault() ?? "(untitled)"}\" "
-                   + $"stage=\"{lines.Skip(1).FirstOrDefault() ?? ""}\" buttons=[]";
+            // By name, not by position. Reading the first two non-empty TextBlocks assumed a
+            // declaration order that any later layout tweak would silently invert, and a harness
+            // that reports the wrong field is worse than one that reports nothing. Buttons are
+            // empty because it has none -- there is nothing to answer, only something to wait for.
+            return $"dialog: UPDATING \"{TextOfNamed(updating, "UpdateTitle") ?? "(untitled)"}\" "
+                   + $"stage=\"{TextOfNamed(updating, "UpdateStage") ?? ""}\" buttons=[]";
         }
 
         var overlay = VisibleOverlay("DialogOverlay");

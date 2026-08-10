@@ -70,12 +70,25 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Compress-Archive -Path publish/PunkNexus.exe -DestinationPath dist/PunkNexus-win-x64.zip -Force
           Copy-Item publish/PunkNexus.exe dist/PunkNexus.exe -Force
-          # The updater refuses to install an exe whose hash it cannot confirm, so the release has
-          # to carry one. Same reasoning the client applies to every mod it installs; the updater
-          # replaces the client itself, which is the last place to make an exception.
+          # The updater refuses to install anything whose hash it cannot confirm, so the release has
+          # to carry one for every asset it might fetch. Same reasoning the client applies to every
+          # mod it installs; the updater replaces the client itself, which is the last place to make
+          # an exception.
+          #
+          # BOTH are published, and the exe pair must stay: clients built before the zip path
+          # existed look for PunkNexus.exe and PunkNexus.exe.sha256 by name, and a release without
+          # them is one those clients log as unusable and skip -- permanently, on every launch.
+          # Dropping either is how you strand everyone who has not updated yet.
           $hash = (Get-FileHash dist/PunkNexus.exe -Algorithm SHA256).Hash.ToLower()
           "$hash  PunkNexus.exe" | Out-File -FilePath dist/PunkNexus.exe.sha256 -Encoding ascii -NoNewline
-          Write-Host "sha256 $hash"
+          Write-Host "sha256 (exe) $hash"
+
+          # Preferred by current clients: same binary, well under half the bytes, which on a slow
+          # connection is the difference between an update that completes and one that times out.
+          $zipHash = (Get-FileHash dist/PunkNexus-win-x64.zip -Algorithm SHA256).Hash.ToLower()
+          "$zipHash  PunkNexus-win-x64.zip" |
+            Out-File -FilePath dist/PunkNexus-win-x64.zip.sha256 -Encoding ascii -NoNewline
+          Write-Host "sha256 (zip) $zipHash"
           Get-ChildItem dist | ForEach-Object {
             "{0}  {1:N1} MB" -f $_.Name, ($_.Length / 1MB)
           }
@@ -98,6 +111,7 @@ jobs:
             dist/PunkNexus.exe
             dist/PunkNexus.exe.sha256
             dist/PunkNexus-win-x64.zip
+            dist/PunkNexus-win-x64.zip.sha256
           generate_release_notes: true
           append_body: true
           body: |

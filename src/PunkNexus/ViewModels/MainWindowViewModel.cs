@@ -4,7 +4,7 @@ using PunkNexus.Services;
 
 namespace PunkNexus.ViewModels;
 
-public sealed partial class MainWindowViewModel : ViewModelBase
+public sealed partial class MainWindowViewModel : ViewModelBase, IUpdateOverlayPreview
 {
     private readonly AppServices _services;
     private readonly DispatcherTimer _installWatch;
@@ -20,6 +20,23 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     /// <summary>The overlay shown while the client downloads and installs its own replacement.</summary>
     public UpdateProgressViewModel Update { get; } = new();
+
+    /// <summary>
+    /// Drives that overlay from the diagnostic harness, so the one screen that otherwise only
+    /// appears during a real self-replacement can be looked at and screenshotted without cutting a
+    /// release to trigger it. Diagnostic mode only -- nothing in the app calls this.
+    /// </summary>
+    void IUpdateOverlayPreview.PreviewUpdateOverlay(string? stage, double? fraction)
+    {
+        if (stage is null)
+        {
+            Update.End();
+            return;
+        }
+
+        if (!Update.IsRunning) Update.Begin(UpdateService.Current);
+        Update.Report(new InstallProgress(stage, fraction));
+    }
 
     [ObservableProperty] private bool _isSetupVisible = true;
     [ObservableProperty] private bool _isModsTab = true;
@@ -235,6 +252,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     /// </summary>
     private async Task OfferUpdateAsync()
     {
+        // Before the check, not after it: a run killed mid-download leaves a staged file behind,
+        // and the tidy-up should happen whether or not there is a new release to fetch today.
+        UpdateService.SweepStagedDownloads();
+
         var update = await _services.Updates.CheckAsync(CancellationToken.None).ConfigureAwait(true);
         if (update is null) return;
 
@@ -272,28 +293,54 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         // Constructed on the UI thread so Progress<T> marshals every report back to it; the download
         // loop itself runs off it.
         var progress = new Progress<InstallProgress>(Update.Report);
-        Update.Begin(update.Version);
 
-        try
+        while (true)
         {
-            await _services.Updates.ApplyAsync(update, progress, CancellationToken.None).ConfigureAwait(true);
-            Shutdown();      // the swap script is waiting for this process to exit
-        }
-        catch (Exception ex)
-        {
-            // Down before the error goes up, or the explanation of what went wrong appears behind a
-            // progress bar frozen at whatever fraction it failed on.
-            Update.End();
+            Update.Begin(update.Version);
 
-            Log.Error($"Updating to {update.Version} failed", ex);
-            await _services.Dialogs.ShowAsync(new DialogRequest
+            try
             {
-                Title = "The update could not be applied",
-                Message = ex.Message,
-                Kind = DialogKind.Danger,
-                AcceptText = "Close",
-            }).ConfigureAwait(true);
-            Shutdown();
+                await _services.Updates.ApplyAsync(update, progress, CancellationToken.None).ConfigureAwait(true);
+                Shutdown();      // the swap script is waiting for this process to exit
+                return;
+            }
+            catch (Exception ex)
+            {
+                // Down before the error goes up, or the explanation of what went wrong appears
+                // behind a progress bar frozen at whatever fraction it failed on.
+                Update.End();
+                Log.Error($"Updating to {update.Version} failed", ex);
+
+                // Declining the OFFER still closes the app -- that is a choice to keep running a
+                // build we have reason to replace, and the policy above is deliberate. A FAILURE is
+                // not that choice. The user said yes; the client could not deliver. Closing on it
+                // punishes them for the network, and because the same thing happens on every
+                // launch, it is not a bad session -- it is an app that can never be opened again.
+                // The download has a hard ceiling of one HttpClient timeout with no resume, so a
+                // slow enough line makes that permanent. Retrying is the fix; carrying on with the
+                // old build is the fallback, said plainly rather than dressed up as fine.
+                var retry = await _services.Dialogs.ShowAsync(new DialogRequest
+                {
+                    Title = "The update could not be applied",
+                    Message = ex.Message,
+                    Kind = DialogKind.Warning,
+                    Details = new List<DialogDetail>
+                    {
+                        new("Nothing was installed and nothing was changed — the download was "
+                            + "discarded", null),
+                        new($"Continuing keeps you on {UpdateService.Current}, which is missing "
+                            + $"whatever {update.Version} fixed", null),
+                        new("The update is offered again next time PUNK Nexus starts", null),
+                    },
+                    AcceptText = "Try again",
+                    DeclineText = "Continue without updating",
+                }).ConfigureAwait(true);
+
+                if (retry) continue;
+
+                Log.Warn($"Continuing on {UpdateService.Current} after a failed update to {update.Version}.");
+                return;
+            }
         }
     }
 

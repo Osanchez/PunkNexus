@@ -168,14 +168,14 @@
           <Border Height="3" CornerRadius="10,10,0,0" Background="{DynamicResource Accent}" />
 
           <StackPanel Margin="24" Spacing="16">
-            <TextBlock Classes="h2" Text="{Binding Update.Title}" />
+            <TextBlock Name="UpdateTitle" Classes="h2" Text="{Binding Update.Title}" />
 
             <StackPanel Spacing="8">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <!-- Wrapped: the download stage carries a byte counter on the end of it, and a
                      narrow window should push that onto a second line rather than clip it. -->
-                <TextBlock Grid.Column="0" Text="{Binding Update.Stage}" Classes="muted"
-                           FontSize="13" TextWrapping="Wrap" />
+                <TextBlock Name="UpdateStage" Grid.Column="0" Text="{Binding Update.Stage}"
+                           Classes="muted" FontSize="13" TextWrapping="Wrap" />
                 <TextBlock Grid.Column="1" Text="{Binding Update.PercentText}" Classes="dim"
                            FontSize="12" VerticalAlignment="Top"
                            IsVisible="{Binding Update.IsDeterminate}" />

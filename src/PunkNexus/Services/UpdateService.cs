@@ -1,12 +1,27 @@
 using System.Diagnostics;
+using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace PunkNexus.Services;
 
-/// <summary>What a check found, if anything.</summary>
-public sealed record AvailableUpdate(Version Version, string DownloadUrl, string? Sha256, string? Notes);
+/// <summary>
+/// What a check found, if anything.
+///
+/// <paramref name="IsArchive"/> says which asset <paramref name="DownloadUrl"/> points at. The
+/// release publishes the same binary twice — as a bare exe and zipped — and the zip is well under
+/// half the size, because a self-contained .NET single file is almost entirely compressible.
+/// <paramref name="InnerExeSha256"/> is the hash of the exe inside it, when the release publishes
+/// one, so the unpacked file is checked as well as the archive it came out of.
+/// </summary>
+public sealed record AvailableUpdate(
+    Version Version,
+    string DownloadUrl,
+    string? Sha256,
+    string? Notes,
+    bool IsArchive = false,
+    string? InnerExeSha256 = null);
 
 /// <summary>
 /// Keeps the client current.
@@ -28,7 +43,14 @@ public sealed class UpdateService
 {
     private const string LatestRelease = "https://api.github.com/repos/Osanchez/PunkNexus/releases/latest";
     private const string ExeAsset = "PunkNexus.exe";
-    private const string HashAsset = "PunkNexus.exe.sha256";
+    private const string ExeHashAsset = "PunkNexus.exe.sha256";
+    private const string ZipAsset = "PunkNexus-win-x64.zip";
+    private const string ZipHashAsset = "PunkNexus-win-x64.zip.sha256";
+
+    // Both live beside the running exe, because that is the only folder the swap can rename across
+    // without crossing a volume. Named so a leftover is recognisable at a glance.
+    private const string StagedExe = "PunkNexus.update.exe";
+    private const string StagedZip = "PunkNexus.update.zip";
 
     private readonly HttpClient _http;
 
@@ -78,31 +100,93 @@ public sealed class UpdateService
             }
             if (latest <= Current) return null;
 
-            var exe = release.Assets.FirstOrDefault(a =>
-                string.Equals(a.Name, ExeAsset, StringComparison.OrdinalIgnoreCase));
+            var exeSha = await ReadPublishedHashAsync(release, ExeHashAsset, ct).ConfigureAwait(false);
+
+            // Prefer the archive. It is the same binary the exe asset carries, and it is less than
+            // half the bytes -- which is not merely faster but the difference between finishing and
+            // not: the whole transfer runs under one HttpClient timeout with no resume, so on a slow
+            // line the download size decides whether the update can ever complete.
+            var zip = AssetNamed(release, ZipAsset);
+            var zipSha = await ReadPublishedHashAsync(release, ZipHashAsset, ct).ConfigureAwait(false);
+            if (zip?.DownloadUrl is not null && zipSha is not null)
+            {
+                Log.Info($"Update available: {Current} -> {latest} (archive).");
+                return new AvailableUpdate(latest, zip.DownloadUrl, zipSha, release.Body,
+                    IsArchive: true, InnerExeSha256: exeSha);
+            }
+
+            // No zip, or one we have no hash for. Falling back to the bare exe rather than refusing:
+            // a release built before the zip hash existed is still a real release, and the exe path
+            // is verified by exactly the same rule.
+            var exe = AssetNamed(release, ExeAsset);
             if (exe?.DownloadUrl is null)
             {
                 Log.Warn($"Release {release.TagName} publishes no {ExeAsset}; ignoring it.");
                 return null;
             }
 
-            var hashAsset = release.Assets.FirstOrDefault(a =>
-                string.Equals(a.Name, HashAsset, StringComparison.OrdinalIgnoreCase));
-            string? sha = null;
-            if (hashAsset?.DownloadUrl is not null)
-            {
-                var text = await _http.GetStringAsync(hashAsset.DownloadUrl, ct).ConfigureAwait(false);
-                sha = text.Split(' ', '\n', '\r').FirstOrDefault(t => t.Length == 64)?.ToLowerInvariant();
-            }
-
-            Log.Info($"Update available: {Current} -> {latest}.");
-            return new AvailableUpdate(latest, exe.DownloadUrl, sha, release.Body);
+            Log.Info($"Update available: {Current} -> {latest} (bare exe).");
+            return new AvailableUpdate(latest, exe.DownloadUrl, exeSha, release.Body);
         }
         catch (Exception ex)
         {
             Log.Warn($"Update check failed: {ex.Message}");
             return null;
         }
+    }
+
+    private static GitHubAsset? AssetNamed(GitHubRelease release, string name) =>
+        release.Assets.FirstOrDefault(a => string.Equals(a.Name, name, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Read one of the release's .sha256 files, or null if it publishes none.
+    ///
+    /// Hex is required, not just 64 characters. The token this picks out is the sole thing standing
+    /// between a downloaded executable and being run, so "something the right length" is not a good
+    /// enough test of "a checksum" -- and a malformed file should read as no promise at all rather
+    /// than as a promise nothing can satisfy.
+    /// </summary>
+    private async Task<string?> ReadPublishedHashAsync(GitHubRelease release, string name, CancellationToken ct)
+    {
+        var asset = AssetNamed(release, name);
+        if (asset?.DownloadUrl is null) return null;
+
+        try
+        {
+            var text = await _http.GetStringAsync(asset.DownloadUrl, ct).ConfigureAwait(false);
+            return text.Split(' ', '\n', '\r', '\t')
+                       .FirstOrDefault(t => t.Length == 64 && t.All(Uri.IsHexDigit))
+                       ?.ToLowerInvariant();
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"Could not read {name} from the release: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Remove any staged download left beside the exe by an earlier run.
+    ///
+    /// Nothing ever reads one of these without checking it first -- the swap only starts on a path
+    /// that has just passed verification -- so a leftover is litter rather than a hazard. It is
+    /// still tens of megabytes sitting in the user's folder under a name suggesting the client is
+    /// mid-update, left there by any run killed during a download, and nothing else removes it.
+    ///
+    /// A file another instance is actively downloading is protected by Windows itself: File.Create
+    /// holds it exclusively, the delete fails, and TryDelete swallows it.
+    /// </summary>
+    public static void SweepStagedDownloads()
+    {
+        var exe = Environment.ProcessPath;
+        if (string.IsNullOrEmpty(exe)) return;
+
+        var folder = Path.GetDirectoryName(exe);
+        if (string.IsNullOrEmpty(folder)) return;
+
+        foreach (var name in new[] { StagedExe, StagedZip })
+            if (TryDelete(Path.Combine(folder, name)))
+                Log.Info($"Removed a leftover update download: {name}.");
     }
 
     /// <summary>
@@ -129,9 +213,13 @@ public sealed class UpdateService
         var current = Environment.ProcessPath
                       ?? throw new InstallException("Could not work out where this program is running from.");
         var folder = Path.GetDirectoryName(current)!;
-        var staged = Path.Combine(folder, "PunkNexus.update.exe");
+        var staged = Path.Combine(folder, StagedExe);
 
-        Log.Info($"Downloading {update.Version} to {staged}.");
+        // For the bare-exe path these are the same file, so the download IS the staged build and
+        // the unpack step below is skipped.
+        var download = update.IsArchive ? Path.Combine(folder, StagedZip) : staged;
+
+        Log.Info($"Downloading {update.Version} to {download}.");
 
         // Reported before the request, not after: name resolution and the connection to GitHub can
         // take a couple of seconds on their own, and that is time the overlay would otherwise sit
@@ -146,7 +234,7 @@ public sealed class UpdateService
                 response.EnsureSuccessStatusCode();
                 var total = response.Content.Headers.ContentLength ?? 0;
                 await using var source = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-                await using var target = File.Create(staged);
+                await using var target = File.Create(download);
 
                 var buffer = new byte[81920];
                 long done = 0;
@@ -167,22 +255,35 @@ public sealed class UpdateService
             // Named rather than folded into the download, because it is the step that decides
             // whether this build gets installed at all, and on a slow disk it is a visible pause.
             progress?.Report(new InstallProgress("Verifying the download against its published checksum"));
+            await VerifyAsync(download, update.Sha256!, "download", ct).ConfigureAwait(false);
 
-            string actual;
-            await using (var stream = File.OpenRead(staged))
-                actual = Convert.ToHexString(await SHA256.HashDataAsync(stream, ct).ConfigureAwait(false)).ToLowerInvariant();
+            if (update.IsArchive)
+            {
+                progress?.Report(new InstallProgress("Unpacking"));
 
-            if (!string.Equals(actual, update.Sha256, StringComparison.OrdinalIgnoreCase))
-                throw new InstallException(
-                    $"The downloaded update does not match its published checksum "
-                    + $"(expected {update.Sha256[..12]}…, got {actual[..12]}…). It was discarded.");
+                // ZipSafe is for archives that land in the game folder at paths the archive itself
+                // chooses; that is not this. One entry is pulled out by name to a path picked here,
+                // so no entry name is ever used as a destination and there is nothing to escape.
+                // The archive also just matched the hash published with the release, so its
+                // contents are byte-for-byte what CI built.
+                ExtractStagedExe(download, staged);
+
+                // Checked again on the way out, when the release says what the exe should hash to.
+                // The archive matching proves the zip is authentic; this proves the file actually
+                // written to disk is the build inside it, and costs one pass over a local file.
+                if (update.InnerExeSha256 is { } innerHash)
+                    await VerifyAsync(staged, innerHash, "unpacked executable", ct).ConfigureAwait(false);
+
+                TryDelete(download);
+            }
         }
         catch
         {
-            // Anything that goes wrong leaves a file that was never confirmed to be the release,
+            // Anything that goes wrong leaves files that were never confirmed to be the release,
             // sitting next to the exe under the exact name the swap script would move into place.
-            // Nothing reads it without checking first, but leaving it there is still leaving a
+            // Nothing reads them without checking first, but leaving them there is still leaving a
             // half-downloaded binary in the user's game-adjacent folder for no reason.
+            TryDelete(download);
             TryDelete(staged);
             throw;
         }
@@ -193,6 +294,37 @@ public sealed class UpdateService
         // caller shuts down immediately after and the overlay goes with it.
         progress?.Report(new InstallProgress("Installing, then restarting"));
         StartSwap(current, staged);
+    }
+
+    /// <summary>Hash a file and refuse it if it is not what the release promised.</summary>
+    private static async Task VerifyAsync(string path, string expected, string what, CancellationToken ct)
+    {
+        string actual;
+        await using (var stream = File.OpenRead(path))
+            actual = Convert.ToHexString(await SHA256.HashDataAsync(stream, ct).ConfigureAwait(false)).ToLowerInvariant();
+
+        if (!string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase))
+            throw new InstallException(
+                $"The {what} does not match its published checksum "
+                + $"(expected {expected[..12]}…, got {actual[..12]}…). It was discarded.");
+    }
+
+    /// <summary>
+    /// Pull the client out of the release archive. The zip holds exactly one file, but it is
+    /// matched by name rather than taken as "the first entry": an archive with something else in it
+    /// is one this code does not understand, and guessing is how the wrong binary gets installed.
+    /// </summary>
+    private static void ExtractStagedExe(string zipPath, string target)
+    {
+        using var archive = ZipFile.OpenRead(zipPath);
+
+        var entry = archive.Entries.FirstOrDefault(e =>
+                        string.Equals(e.Name, ExeAsset, StringComparison.OrdinalIgnoreCase))
+                    ?? throw new InstallException(
+                        $"The downloaded archive does not contain {ExeAsset}, so there is nothing to "
+                        + "install from it. Update was not applied.");
+
+        entry.ExtractToFile(target, overwrite: true);
     }
 
     /// <summary>Byte counts as the user reads them. MB throughout: the exe is tens of megabytes,
@@ -209,7 +341,7 @@ public sealed class UpdateService
         var script =
             $"$ErrorActionPreference='SilentlyContinue';" +
             $"try {{ Wait-Process -Id {pid} -Timeout 30 }} catch {{}};" +
-            $"$cur='{current}'; $new='{staged}'; $bak=\"$cur.old\";" +
+            $"$cur={PsLiteral(current)}; $new={PsLiteral(staged)}; $bak=\"$cur.old\";" +
             // Move the old file aside rather than deleting it: if the rename of the new one fails,
             // there is still something to put back.
             "Remove-Item $bak -Force -ErrorAction SilentlyContinue;" +
@@ -228,9 +360,28 @@ public sealed class UpdateService
         });
     }
 
-    private static void TryDelete(string path)
+    /// <summary>
+    /// A path as a PowerShell single-quoted literal, with embedded quotes doubled the way
+    /// PowerShell escapes them.
+    ///
+    /// The old code interpolated the path straight between quotes, which breaks on any account
+    /// whose name contains an apostrophe -- C:\Users\O'Brien\... closes the string early and the
+    /// rest of the path is parsed as commands. That is a broken updater for those users, and a
+    /// command injection anywhere a path is not entirely the user's own doing. Nothing here is
+    /// worth leaving to chance: this script runs after the app has exited, unattended.
+    /// </summary>
+    private static string PsLiteral(string value) => "'" + value.Replace("'", "''") + "'";
+
+    /// <summary>Delete if present. Returns whether a file was actually removed.</summary>
+    private static bool TryDelete(string path)
     {
-        try { if (File.Exists(path)) File.Delete(path); } catch { }
+        try
+        {
+            if (!File.Exists(path)) return false;
+            File.Delete(path);
+            return true;
+        }
+        catch { return false; }
     }
 
     // ---- the slice of GitHub's release JSON we actually read ------------------------------------

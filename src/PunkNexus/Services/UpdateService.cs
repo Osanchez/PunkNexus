@@ -112,8 +112,14 @@ public sealed class UpdateService
     /// script that waits for this process to exit first. It only ever touches two paths, both
     /// beside the current exe, and if the move fails it puts the old file back rather than leaving
     /// the user with nothing to launch.
+    ///
+    /// Progress is reported in the same shape the mod installer uses, because the caller shows it
+    /// the same way. It matters more here than there: this download is the app the user is looking
+    /// at, the window is doing nothing else while it runs, and a client that sits silent for the
+    /// length of a 40 MB transfer and then vanishes to restart is indistinguishable from one that
+    /// has hung.
     /// </summary>
-    public async Task ApplyAsync(AvailableUpdate update, IProgress<double>? progress, CancellationToken ct)
+    public async Task ApplyAsync(AvailableUpdate update, IProgress<InstallProgress>? progress, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(update.Sha256))
             throw new InstallException(
@@ -126,40 +132,72 @@ public sealed class UpdateService
         var staged = Path.Combine(folder, "PunkNexus.update.exe");
 
         Log.Info($"Downloading {update.Version} to {staged}.");
-        using (var response = await _http.GetAsync(update.DownloadUrl, HttpCompletionOption.ResponseHeadersRead, ct)
-                   .ConfigureAwait(false))
-        {
-            response.EnsureSuccessStatusCode();
-            var total = response.Content.Headers.ContentLength ?? 0;
-            await using var source = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-            await using var target = File.Create(staged);
 
-            var buffer = new byte[81920];
-            long done = 0;
-            int read;
-            while ((read = await source.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
+        // Reported before the request, not after: name resolution and the connection to GitHub can
+        // take a couple of seconds on their own, and that is time the overlay would otherwise sit
+        // on an empty bar.
+        progress?.Report(new InstallProgress("Contacting GitHub"));
+
+        try
+        {
+            using (var response = await _http.GetAsync(update.DownloadUrl, HttpCompletionOption.ResponseHeadersRead, ct)
+                       .ConfigureAwait(false))
             {
-                await target.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
-                done += read;
-                if (total > 0) progress?.Report(done / (double)total);
+                response.EnsureSuccessStatusCode();
+                var total = response.Content.Headers.ContentLength ?? 0;
+                await using var source = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+                await using var target = File.Create(staged);
+
+                var buffer = new byte[81920];
+                long done = 0;
+                int read;
+                while ((read = await source.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
+                {
+                    await target.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
+                    done += read;
+
+                    // Sizes as well as a fraction. A bar that has not visibly moved for ten seconds
+                    // says nothing about whether bytes are still arriving; a counter does.
+                    progress?.Report(total > 0
+                        ? new InstallProgress($"Downloading — {Size(done)} of {Size(total)}", done / (double)total)
+                        : new InstallProgress($"Downloading — {Size(done)}"));
+                }
             }
+
+            // Named rather than folded into the download, because it is the step that decides
+            // whether this build gets installed at all, and on a slow disk it is a visible pause.
+            progress?.Report(new InstallProgress("Verifying the download against its published checksum"));
+
+            string actual;
+            await using (var stream = File.OpenRead(staged))
+                actual = Convert.ToHexString(await SHA256.HashDataAsync(stream, ct).ConfigureAwait(false)).ToLowerInvariant();
+
+            if (!string.Equals(actual, update.Sha256, StringComparison.OrdinalIgnoreCase))
+                throw new InstallException(
+                    $"The downloaded update does not match its published checksum "
+                    + $"(expected {update.Sha256[..12]}…, got {actual[..12]}…). It was discarded.");
         }
-
-        string actual;
-        await using (var stream = File.OpenRead(staged))
-            actual = Convert.ToHexString(await SHA256.HashDataAsync(stream, ct).ConfigureAwait(false)).ToLowerInvariant();
-
-        if (!string.Equals(actual, update.Sha256, StringComparison.OrdinalIgnoreCase))
+        catch
         {
+            // Anything that goes wrong leaves a file that was never confirmed to be the release,
+            // sitting next to the exe under the exact name the swap script would move into place.
+            // Nothing reads it without checking first, but leaving it there is still leaving a
+            // half-downloaded binary in the user's game-adjacent folder for no reason.
             TryDelete(staged);
-            throw new InstallException(
-                $"The downloaded update does not match its published checksum "
-                + $"(expected {update.Sha256[..12]}…, got {actual[..12]}…). It was discarded.");
+            throw;
         }
 
         Log.Info("Update verified; handing over.");
+
+        // Last thing the window shows. The swap script waits for this process to exit, so the
+        // caller shuts down immediately after and the overlay goes with it.
+        progress?.Report(new InstallProgress("Installing, then restarting"));
         StartSwap(current, staged);
     }
+
+    /// <summary>Byte counts as the user reads them. MB throughout: the exe is tens of megabytes,
+    /// and a counter that switches units partway through reads as a number going backwards.</summary>
+    private static string Size(long bytes) => $"{bytes / 1024d / 1024d:0.0} MB";
 
     /// <summary>
     /// Spawn the swap and leave. PowerShell rather than a batch file: quoting a path with spaces is

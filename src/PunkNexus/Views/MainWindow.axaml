@@ -155,5 +155,43 @@
       </Border>
     </Border>
 
+    <!-- ===================================================== update progress -->
+    <!-- Last in the panel, so it covers the dialog it replaces: the user accepts the update on the
+         overlay above and this one takes over from it without the window flickering back to a page
+         they can no longer usefully touch. No buttons — the question was already answered, and the
+         only thing left to do is show that it is being carried out. -->
+    <Border Name="UpdateOverlay" IsVisible="{Binding Update.IsRunning}" Background="#D6000000">
+      <Border Classes="card" MaxWidth="580" Padding="0"
+              HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24">
+        <StackPanel>
+
+          <Border Height="3" CornerRadius="10,10,0,0" Background="{DynamicResource Accent}" />
+
+          <StackPanel Margin="24" Spacing="16">
+            <TextBlock Classes="h2" Text="{Binding Update.Title}" />
+
+            <StackPanel Spacing="8">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <!-- Wrapped: the download stage carries a byte counter on the end of it, and a
+                     narrow window should push that onto a second line rather than clip it. -->
+                <TextBlock Grid.Column="0" Text="{Binding Update.Stage}" Classes="muted"
+                           FontSize="13" TextWrapping="Wrap" />
+                <TextBlock Grid.Column="1" Text="{Binding Update.PercentText}" Classes="dim"
+                           FontSize="12" VerticalAlignment="Top"
+                           IsVisible="{Binding Update.IsDeterminate}" />
+              </Grid>
+              <ProgressBar Value="{Binding Update.Percent}" Maximum="100"
+                           IsIndeterminate="{Binding Update.IsIndeterminate}" />
+            </StackPanel>
+
+            <!-- Repeated from the dialog that got us here, because that one is now gone and this is
+                 the screen someone stares at wondering whether closing the window is safe. -->
+            <TextBlock Classes="dim" FontSize="11.5" TextWrapping="Wrap"
+                       Text="Nothing is replaced until the download matches the checksum published with the release. PUNK Nexus closes and reopens itself once the new build is in place." />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Border>
+
   </Panel>
 </Window>

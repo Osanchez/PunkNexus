@@ -211,11 +211,18 @@ public sealed class DiagHarness
         _window.GetVisualDescendants().OfType<Control>()
                .Where(c => c is Button or CheckBox or TextBox or TabItem or ComboBox or ListBoxItem);
 
+    /// <summary>
+    /// The named overlay, but only while it is actually on screen. Both modals are always in the
+    /// tree and switch on IsVisible, so presence proves nothing on its own.
+    /// </summary>
+    private Control? VisibleOverlay(string name) =>
+        _window.GetVisualDescendants().OfType<Control>()
+               .FirstOrDefault(c => c.Name == name && c.IsEffectivelyVisible);
+
     /// <summary>The title of the open modal, or null when none is showing.</summary>
     private string? OpenDialogTitle()
     {
-        var overlay = _window.GetVisualDescendants().OfType<Control>()
-            .FirstOrDefault(c => c.Name == "DialogOverlay" && c.IsEffectivelyVisible);
+        var overlay = VisibleOverlay("DialogOverlay");
         if (overlay is null) return null;
 
         var text = overlay.GetVisualDescendants().OfType<TextBlock>()
@@ -226,8 +233,22 @@ public sealed class DiagHarness
 
     private string DialogState()
     {
-        var overlay = _window.GetVisualDescendants().OfType<Control>()
-            .FirstOrDefault(c => c.Name == "DialogOverlay" && c.IsEffectivelyVisible);
+        // Checked first, because by the time this one is up the dialog that authorised it has
+        // closed -- so a harness that only knew about DialogOverlay would report "none open" for
+        // the one state in which the window is least able to do anything else.
+        if (VisibleOverlay("UpdateOverlay") is { } updating)
+        {
+            var lines = updating.GetVisualDescendants().OfType<TextBlock>()
+                .Select(t => t.Text)
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .ToList();
+            // Declaration order: title, then the stage line. Buttons are empty because it has
+            // none -- there is nothing to answer, only something to wait for.
+            return $"dialog: UPDATING \"{lines.FirstOrDefault() ?? "(untitled)"}\" "
+                   + $"stage=\"{lines.Skip(1).FirstOrDefault() ?? ""}\" buttons=[]";
+        }
+
+        var overlay = VisibleOverlay("DialogOverlay");
         if (overlay is null) return "dialog: none open";
 
         var title = OpenDialogTitle() ?? "(untitled)";
@@ -341,13 +362,17 @@ public sealed class DiagHarness
         // verification prompt actually started installing some unrelated mod further down the
         // list, while the prompt sat there unanswered. A person cannot make that mistake, because
         // the overlay physically blocks the rows; the harness has to be told.
-        var overlay = _window.GetVisualDescendants().OfType<Control>()
-            .FirstOrDefault(c => c.Name == "DialogOverlay" && c.IsEffectivelyVisible);
+        var overlay = VisibleOverlay("DialogOverlay");
         if (overlay is not null)
         {
             var inDialog = all.Where(c => c.GetVisualAncestors().Contains(overlay)).ToList();
             if (inDialog.Count > 0) all = inDialog;
         }
+
+        // The update overlay gets the same treatment for the opposite reason: it contains no
+        // buttons at all, so the scoping above would find nothing to narrow to and leave every
+        // control on the page behind it clickable. A person looking at it can click none of them.
+        if (VisibleOverlay("UpdateOverlay") is not null) return null;
         return all.FirstOrDefault(c => string.Equals(IdOf(c), idOrText, StringComparison.OrdinalIgnoreCase))
             ?? all.FirstOrDefault(c => string.Equals(TextOf(c), idOrText, StringComparison.OrdinalIgnoreCase))
             ?? all.FirstOrDefault(c => TextOf(c).Contains(idOrText, StringComparison.OrdinalIgnoreCase))

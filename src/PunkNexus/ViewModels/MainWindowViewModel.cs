@@ -18,6 +18,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public ServersViewModel Servers { get; }
     public SettingsViewModel SettingsPage { get; }
 
+    /// <summary>The overlay shown while the client downloads and installs its own replacement.</summary>
+    public UpdateProgressViewModel Update { get; } = new();
+
     [ObservableProperty] private bool _isSetupVisible = true;
     [ObservableProperty] private bool _isModsTab = true;
     [ObservableProperty] private bool _isServersTab;
@@ -266,13 +269,22 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
+        // Constructed on the UI thread so Progress<T> marshals every report back to it; the download
+        // loop itself runs off it.
+        var progress = new Progress<InstallProgress>(Update.Report);
+        Update.Begin(update.Version);
+
         try
         {
-            await _services.Updates.ApplyAsync(update, null, CancellationToken.None).ConfigureAwait(true);
+            await _services.Updates.ApplyAsync(update, progress, CancellationToken.None).ConfigureAwait(true);
             Shutdown();      // the swap script is waiting for this process to exit
         }
         catch (Exception ex)
         {
+            // Down before the error goes up, or the explanation of what went wrong appears behind a
+            // progress bar frozen at whatever fraction it failed on.
+            Update.End();
+
             Log.Error($"Updating to {update.Version} failed", ex);
             await _services.Dialogs.ShowAsync(new DialogRequest
             {

@@ -3,6 +3,26 @@
   "modId": "WeaponForge",
   "scans": [
     {
+      "sha256": "e4619f1aa6fd15f7a7a1c4e3df93777e5db6d950235cedb6189e0145ecd19c15",
+      "fileName": "WeaponForge-v5.0.0.zip",
+      "sizeBytes": 213827,
+      "downloadUrl": "https://github.com/Osanchez/WeaponForge/releases/download/v2026.08.09.7/WeaponForge-v5.0.0.zip",
+      "modVersion": "5.0.0",
+      "declaredSha256": "e4619f1aa6fd15f7a7a1c4e3df93777e5db6d950235cedb6189e0145ecd19c15",
+      "declaredMatches": true,
+      "scannedUtc": "2026-08-10T05:49:26Z",
+      "permalink": "https://www.virustotal.com/gui/file/e4619f1aa6fd15f7a7a1c4e3df93777e5db6d950235cedb6189e0145ecd19c15",
+      "enginesTotal": 67,
+      "detections": 0,
+      "malicious": 0,
+      "suspicious": 0,
+      "detectedBy": [],
+      "status": "completed",
+      "analyzedUtc": "2026-08-10T05:49:26Z",
+      "analysisId": "MmNiMjRiNmVjNjA5MGY1OGFiNDc1OGE0MjhkOWQ0ZWE6MTc4NjM0MDkxNA==",
+      "source": "upload"
+    },
+    {
       "sha256": "0a7b0546bbc01a1a3399482a738776869251e988274d7bf5333c0c625f5c85d4",
       "fileName": "WeaponForge-v1.0.0.zip",
       "sizeBytes": 184666,

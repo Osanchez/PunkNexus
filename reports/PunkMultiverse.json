@@ -3,6 +3,26 @@
   "modId": "PunkMultiverse",
   "scans": [
     {
+      "sha256": "93a6875663acd64a129480440a9f56288ea5300207e16492287b1b0344ac8aa1",
+      "fileName": "PunkMultiverse-v0.1.256.zip",
+      "sizeBytes": 470563,
+      "downloadUrl": "https://github.com/Osanchez/PunkMultiverse/releases/download/v0.1.256/PunkMultiverse-v0.1.256.zip",
+      "modVersion": "0.1.256",
+      "declaredSha256": "93a6875663acd64a129480440a9f56288ea5300207e16492287b1b0344ac8aa1",
+      "declaredMatches": true,
+      "scannedUtc": "2026-08-10T05:48:26Z",
+      "permalink": "https://www.virustotal.com/gui/file/93a6875663acd64a129480440a9f56288ea5300207e16492287b1b0344ac8aa1",
+      "enginesTotal": 67,
+      "detections": 0,
+      "malicious": 0,
+      "suspicious": 0,
+      "detectedBy": [],
+      "status": "completed",
+      "analyzedUtc": "2026-08-10T05:48:26Z",
+      "analysisId": "Zjk3NWI1NTdkMzhmOWFlMTQ0MThlZjJjODFhZWJkNTQ6MTc4NjM0MDg0Ng==",
+      "source": "upload"
+    },
+    {
       "sha256": "cfb20eee885bff9d60ed89a12d4cc32b2a2bad409dd2373e203e26ad9e3051eb",
       "fileName": "PunkMultiverse-v0.1.254.zip",
       "sizeBytes": 462222,

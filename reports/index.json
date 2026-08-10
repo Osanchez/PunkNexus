@@ -142,18 +142,18 @@
     {
       "modId": "PunkMultiverse",
       "modName": "Punk Multiverse",
-      "sha256": "cfb20eee885bff9d60ed89a12d4cc32b2a2bad409dd2373e203e26ad9e3051eb",
-      "fileName": "PunkMultiverse-v0.1.254.zip",
-      "sizeBytes": 462222,
-      "modVersion": "0.1.254",
+      "sha256": "93a6875663acd64a129480440a9f56288ea5300207e16492287b1b0344ac8aa1",
+      "fileName": "PunkMultiverse-v0.1.256.zip",
+      "sizeBytes": 470563,
+      "modVersion": "0.1.256",
       "declaredMatches": true,
-      "scannedUtc": "2026-08-09T22:42:07Z",
-      "analyzedUtc": "2026-08-09T20:44:32Z",
+      "scannedUtc": "2026-08-10T05:48:26Z",
+      "analyzedUtc": "2026-08-10T05:48:26Z",
       "status": "completed",
       "enginesTotal": 67,
       "detections": 0,
       "detectedBy": [],
-      "permalink": "https://www.virustotal.com/gui/file/cfb20eee885bff9d60ed89a12d4cc32b2a2bad409dd2373e203e26ad9e3051eb",
+      "permalink": "https://www.virustotal.com/gui/file/93a6875663acd64a129480440a9f56288ea5300207e16492287b1b0344ac8aa1",
       "reportPath": "reports/PunkMultiverse.json"
     },
     {
@@ -278,20 +278,20 @@
     {
       "modId": "WeaponForge",
       "modName": "Weapon Forge",
-      "sha256": "0a7b0546bbc01a1a3399482a738776869251e988274d7bf5333c0c625f5c85d4",
-      "fileName": "WeaponForge-v1.0.0.zip",
-      "sizeBytes": 184666,
-      "modVersion": "1.0.0",
+      "sha256": "e4619f1aa6fd15f7a7a1c4e3df93777e5db6d950235cedb6189e0145ecd19c15",
+      "fileName": "WeaponForge-v5.0.0.zip",
+      "sizeBytes": 213827,
+      "modVersion": "5.0.0",
       "declaredMatches": true,
-      "scannedUtc": "2026-08-09T22:52:01Z",
-      "analyzedUtc": null,
+      "scannedUtc": "2026-08-10T05:49:26Z",
+      "analyzedUtc": "2026-08-10T05:49:26Z",
       "status": "completed",
-      "enginesTotal": 0,
+      "enginesTotal": 67,
       "detections": 0,
       "detectedBy": [],
-      "permalink": "https://www.virustotal.com/gui/file/0a7b0546bbc01a1a3399482a738776869251e988274d7bf5333c0c625f5c85d4",
+      "permalink": "https://www.virustotal.com/gui/file/e4619f1aa6fd15f7a7a1c4e3df93777e5db6d950235cedb6189e0145ecd19c15",
       "reportPath": "reports/WeaponForge.json"
     }
   ],
-  "updatedUtc": "2026-08-09T22:52:01Z"
+  "updatedUtc": "2026-08-10T05:49:26Z"
 }

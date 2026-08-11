@@ -72,8 +72,20 @@ public sealed class InstallService
     // ---------------------------------------------------------------- install
 
     /// <returns>False when the user declined at the verification prompt.</returns>
+    /// <param name="replaceExistingCore">
+    /// Clear <c>BepInEx/core</c> before extracting. Off for a first install, ON for an update,
+    /// and the difference is the whole point: extraction only ever WRITES, so unzipping BepInEx 6
+    /// over a BepInEx 5 install leaves 5's assemblies sitting beside 6's. That mixed core is worse
+    /// than either version alone — plugins resolve against whichever loads first and fail with
+    /// nothing in the log that names the cause.
+    ///
+    /// Only <c>core</c> is cleared. <c>plugins</c> (the mods themselves and every config.cfg beside
+    /// them) and <c>config</c> (BepInEx's own settings) are left exactly as they are, because an
+    /// update to the loader is not a reason to cost somebody their mods or their settings.
+    /// </param>
     public async Task<bool> InstallLoaderAsync(
-        string gameRoot, LoaderEntry loader, IProgress<InstallProgress>? progress, CancellationToken ct)
+        string gameRoot, LoaderEntry loader, IProgress<InstallProgress>? progress, CancellationToken ct,
+        bool replaceExistingCore = false)
     {
         GuardGameFolder(gameRoot);
 
@@ -93,6 +105,8 @@ public sealed class InstallService
                 .ConfigureAwait(false);
 
             if (!await ConfirmAsync(report).ConfigureAwait(false)) return false;
+
+            if (replaceExistingCore) ClearLoaderCore(gameRoot, progress);
 
             progress?.Report(new InstallProgress("Installing BepInEx"));
             var written = ZipSafe.Extract(zip, gameRoot, null, ct);
@@ -578,6 +592,40 @@ public sealed class InstallService
         await using var stream = File.OpenRead(file);
         var hash = await SHA256.HashDataAsync(stream, ct).ConfigureAwait(false);
         return Convert.ToHexString(hash);
+    }
+
+    /// <summary>
+    /// Delete the loader's own assemblies so the incoming ones cannot land beside an older
+    /// generation's. Scoped to <c>BepInEx/core</c> and nothing else — a caller that wanted the
+    /// mods gone would be uninstalling, not updating.
+    ///
+    /// Best-effort per file: a core DLL held open by a running game should not abandon an update
+    /// halfway, and the extraction that follows overwrites whatever survived. What it cannot do is
+    /// silently leave a BepInEx 5 assembly behind, so anything left is named in the log.
+    /// </summary>
+    private static void ClearLoaderCore(string gameRoot, IProgress<InstallProgress>? progress)
+    {
+        var core = Path.Combine(gameRoot, "BepInEx", "core");
+        if (!Directory.Exists(core)) return;
+
+        progress?.Report(new InstallProgress("Removing the old BepInEx core"));
+
+        var stubborn = new List<string>();
+        foreach (var file in Directory.GetFiles(core, "*", SearchOption.AllDirectories))
+        {
+            try { File.Delete(file); }
+            catch (Exception ex)
+            {
+                stubborn.Add(Path.GetFileName(file));
+                Log.Warn($"Could not remove {Path.GetFileName(file)} from the BepInEx core: {ex.Message}");
+            }
+        }
+
+        if (stubborn.Count > 0)
+            Log.Warn($"{stubborn.Count} core file(s) could not be removed and will be overwritten " +
+                     $"instead: {string.Join(", ", stubborn)}. Close the game if BepInEx misbehaves.");
+        else
+            Log.Info("Old BepInEx core removed; plugins and config left untouched.");
     }
 
     // ---------------------------------------------------------------- helpers

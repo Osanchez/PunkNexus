@@ -77,6 +77,49 @@ public sealed partial class ModsViewModel : ViewModelBase
 
     public bool NeedsLoader => _session.HasPath && !_session.LoaderInstalled;
     public bool IsEmpty => Visible.Count == 0 && !IsLoading;
+
+    // ---------------------------------------------------------------- the loader on disk
+
+    /// <summary>
+    /// What BepInEx is actually installed, re-read whenever it could have changed. Held rather
+    /// than computed per binding because every read touches the disk.
+    /// </summary>
+    [ObservableProperty] private LoaderStatus? _loaderStatus;
+
+    /// <summary>Always shown once a game folder is known — "BepInEx 6.0.0-be.785", or the reason
+    /// there is no version to show. A version the user can read is the first thing anybody asks
+    /// for when a mod does not load.</summary>
+    public string LoaderVersionLabel => LoaderStatus switch
+    {
+        null => "BepInEx: checking…",
+        { Installed: false } => "BepInEx: not installed",
+        { InstalledVersion: null } => "BepInEx: installed, version unreadable",
+        var s => $"BepInEx {s.InstalledVersion}",
+    };
+
+    /// <summary>The warning banner, distinct from the "not installed yet" one: this is for an
+    /// install that EXISTS and will not do what the user expects.</summary>
+    public bool LoaderNeedsAttention =>
+        _session.HasPath && LoaderStatus is { Installed: true, UpdateAvailable: true };
+
+    public string LoaderWarning => LoaderStatus?.Headline ?? "";
+
+    /// <summary>
+    /// Why an update is safe to accept, spelled out on the button's own banner. People are right
+    /// to hesitate before letting something rewrite their game folder, and "your mods are kept" is
+    /// exactly the fact that decides it.
+    /// </summary>
+    public string LoaderUpdateReassurance =>
+        "Your installed mods and their settings are kept — only BepInEx's own files are replaced.";
+
+    private void RefreshLoaderStatus()
+    {
+        LoaderStatus = LoaderInspector.Inspect(_session.Path, _loader?.Version);
+        OnPropertyChanged(nameof(LoaderVersionLabel));
+        OnPropertyChanged(nameof(LoaderNeedsAttention));
+        OnPropertyChanged(nameof(LoaderWarning));
+    }
+
     public int InstalledCount => _all.Count(m => m.IsInstalled);
     public int TotalCount => _all.Count;
 
@@ -142,6 +185,10 @@ public sealed partial class ModsViewModel : ViewModelBase
             _loader = result.Value.Loader;
             Notice = result.Warning;
 
+            // Now that the catalog has said which version it expects, the install on disk can be
+            // judged against it rather than merely described.
+            RefreshLoaderStatus();
+
             // One request for the whole catalog's scan reports, before the rows are built, so a
             // row never briefly claims "not scanned yet" only to correct itself a moment later.
             _scans = await LoadScansAsync().ConfigureAwait(true);
@@ -181,7 +228,16 @@ public sealed partial class ModsViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private async Task InstallLoaderAsync()
+    private Task InstallLoaderAsync() => RunLoaderInstallAsync(replaceExistingCore: false);
+
+    /// <summary>
+    /// Update in place: same download, same verification, but the old core is cleared first so a
+    /// BepInEx 5 install cannot survive underneath a 6 one. Plugins and config are untouched.
+    /// </summary>
+    [RelayCommand]
+    private Task UpdateLoaderAsync() => RunLoaderInstallAsync(replaceExistingCore: true);
+
+    private async Task RunLoaderInstallAsync(bool replaceExistingCore)
     {
         if (string.IsNullOrWhiteSpace(_session.Path)) return;
 
@@ -199,24 +255,31 @@ public sealed partial class ModsViewModel : ViewModelBase
         try
         {
             var installed = await _services.Installer
-                .InstallLoaderAsync(_session.Path!, _loader, progress, CancellationToken.None)
+                .InstallLoaderAsync(_session.Path!, _loader, progress, CancellationToken.None,
+                    replaceExistingCore)
                 .ConfigureAwait(true);
 
             _session.LoaderInstalled = _services.Installer.IsLoaderInstalled(_session.Path!);
             Status = installed
-                ? "BepInEx installed. Launch the game once, then install mods."
-                : "BepInEx was not installed.";
+                ? replaceExistingCore
+                    ? $"BepInEx updated to {_loader.Version}. Your mods were kept — launch the game once."
+                    : "BepInEx installed. Launch the game once, then install mods."
+                : replaceExistingCore
+                    ? "BepInEx was not updated."
+                    : "BepInEx was not installed.";
         }
         catch (Exception ex)
         {
-            LoaderError = ex is InstallException ? ex.Message : $"Could not install BepInEx: {ex.Message}";
-            Log.Error("Installing BepInEx failed", ex);
+            var verb = replaceExistingCore ? "update" : "install";
+            LoaderError = ex is InstallException ex2 ? ex2.Message : $"Could not {verb} BepInEx: {ex.Message}";
+            Log.Error($"{char.ToUpperInvariant(verb[0])}{verb[1..]}ing BepInEx failed", ex);
         }
         finally
         {
             LoaderBusy = false;
             LoaderBusyText = null;
             OnPropertyChanged(nameof(NeedsLoader));
+            RefreshLoaderStatus();
         }
     }
 

@@ -29,6 +29,12 @@
                     ToolTip.Tip="{Binding GameVersionDetail}">
               <TextBlock Text="{Binding GameVersionLabel}" />
             </Border>
+            <!-- The loader version, beside the game version, because it is the other half of
+                 "will this mod work" and the first thing anyone is asked for when one doesn't. -->
+            <Border Classes="pill" VerticalAlignment="Center"
+                    ToolTip.Tip="{Binding LoaderWarning}">
+              <TextBlock Text="{Binding LoaderVersionLabel}" />
+            </Border>
             <Button Classes="ghost" Content="Refresh"
                     Command="{Binding RefreshCommand}" IsEnabled="{Binding !IsLoading}" />
             <!-- Installing mods and playing them should not be two errands through two launchers. -->
@@ -74,6 +80,28 @@
           <Button Grid.Column="1" Classes="primary" Content="Install BepInEx"
                   VerticalAlignment="Center" MinWidth="150"
                   Command="{Binding InstallLoaderCommand}" IsEnabled="{Binding !LoaderBusy}" />
+        </Grid>
+      </Border>
+
+      <!-- A BepInEx that IS installed but will not load these mods. Separate banner from the one
+           above on purpose: "you have none" and "yours is the wrong one" are different problems,
+           and the second is the one that looks like the client is broken. It warns and offers the
+           fix rather than blocking — the same call as game-version compatibility one screen over,
+           for the same reason: refusing to act on somebody's behalf is not the same as helping. -->
+      <Border Classes="banner" IsVisible="{Binding LoaderNeedsAttention}">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+          <StackPanel Grid.Column="0" Spacing="3">
+            <TextBlock Text="BepInEx needs updating" FontWeight="SemiBold" FontSize="14" />
+            <TextBlock Classes="muted" FontSize="12.5" TextWrapping="Wrap"
+                       Text="{Binding LoaderWarning}" />
+            <TextBlock Classes="dim" FontSize="12" TextWrapping="Wrap"
+                       Text="{Binding LoaderUpdateReassurance}" />
+            <TextBlock Text="{Binding LoaderBusyText}" Classes="dim"
+                       IsVisible="{Binding LoaderBusy}" />
+          </StackPanel>
+          <Button Grid.Column="1" Classes="primary" Content="Update BepInEx"
+                  VerticalAlignment="Center" MinWidth="150"
+                  Command="{Binding UpdateLoaderCommand}" IsEnabled="{Binding !LoaderBusy}" />
         </Grid>
       </Border>
 

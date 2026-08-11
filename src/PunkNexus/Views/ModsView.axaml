@@ -53,6 +53,7 @@
                narrowing a big list to the mods that apply to you. -->
           <ComboBox Grid.Column="2" ItemsSource="{Binding Sides}"
                     SelectedItem="{Binding SelectedSide, Mode=TwoWay}"
+                    ToolTip.Tip="{Binding SideFilterTooltip}"
                     HorizontalAlignment="Stretch" />
           <CheckBox Grid.Column="3" Content="Installed only" VerticalAlignment="Center"
                     IsChecked="{Binding InstalledOnly, Mode=TwoWay}" />

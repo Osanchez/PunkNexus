@@ -72,23 +72,6 @@
       "reportPath": "reports/PunkDronesEnhanced.json"
     },
     {
-      "modId": "PunkFourPlayer",
-      "modName": "Four Player",
-      "sha256": "11b80644698b1207d6c4cbb8f8f3db9bc0cd4207b03204bde463acc215e2a9e1",
-      "fileName": "PunkFourPlayer-v0.2.1.zip",
-      "sizeBytes": 23849,
-      "modVersion": "0.2.1",
-      "declaredMatches": true,
-      "scannedUtc": "2026-08-09T16:40:35Z",
-      "analyzedUtc": "2026-08-09T16:40:35Z",
-      "status": "completed",
-      "enginesTotal": 67,
-      "detections": 0,
-      "detectedBy": [],
-      "permalink": "https://www.virustotal.com/gui/file/11b80644698b1207d6c4cbb8f8f3db9bc0cd4207b03204bde463acc215e2a9e1",
-      "reportPath": "reports/PunkFourPlayer.json"
-    },
-    {
       "modId": "PunkInputTweaks",
       "modName": "Input Tweaks",
       "sha256": "057a5f66a76919195f2fbca74da71d16ac50a6802ab222ddf9349c863f8014de",

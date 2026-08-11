@@ -26,21 +26,6 @@
       "enabled": true
     },
     {
-      "id": "PunkFourPlayer",
-      "manifestUrl": "https://raw.githubusercontent.com/Osanchez/PunkMods/main/PunkFourPlayer/mod.json",
-      "name": "Four Player",
-      "author": "Trihardest",
-      "category": "Co-op",
-      "description": "Local and Remote Play co-op for up to 4 players — dynamic join screen, extra ships and HUDs, and the ready-up profile picker.",
-      "iconUrl": null,
-      "homepage": "https://github.com/Osanchez/PunkMods",
-      "tags": [
-        "co-op",
-        "multiplayer"
-      ],
-      "enabled": true
-    },
-    {
       "id": "PunkMultiverse",
       "manifestUrl": "https://raw.githubusercontent.com/Osanchez/PunkMultiverse/main/mod.json",
       "name": "Punk Multiverse",

@@ -47,6 +47,7 @@ public interface IUpdateOverlayPreview
 ///   click &lt;id-or-text&gt;     invoke the first match (buttons, tabs, checkboxes, list rows)
 ///   settext &lt;id&gt; &lt;value&gt;   set a TextBox's text
 ///   select &lt;item&gt;            pick an item in whichever ComboBox offers it
+///   hover &lt;text&gt;             open the tooltip on the control showing that text
 ///   tab &lt;name&gt;             select a tab by header
 ///   screenshot &lt;name&gt;      render THIS WINDOW to shots\&lt;name&gt;.png
 ///   dialog                 whether a modal is open, its title and its buttons
@@ -165,6 +166,7 @@ public sealed class DiagHarness
             case "tab": Out(SelectTab(rest)); return;
             case "settext": Out(SetText(rest)); return;
             case "select": Out(SelectItem(rest)); return;
+            case "hover": Out(ShowTooltip(rest)); return;
             case "screenshot": Out(Screenshot(rest)); return;
             case "state": Out(State()); return;
             case "updateui": Out(PreviewUpdate(rest)); return;
@@ -509,6 +511,48 @@ public sealed class DiagHarness
         }
 
         return $"select: no visible ComboBox offers '{wanted}'";
+    }
+
+    /// <summary>
+    /// Opens a tooltip so it can be looked at and screenshotted. A tooltip is the one part of a UI
+    /// that no static screenshot ever shows and no assertion ever reaches — which makes it the part
+    /// most likely to be wrong, or to have been written and never rendered at all.
+    ///
+    /// Matched against the control's own text OR the tooltip's, because the thing carrying the tip
+    /// is often a container (a badge Border wrapping a TextBlock) whose own text is empty.
+    /// </summary>
+    private string ShowTooltip(string rest)
+    {
+        var wanted = rest.Trim();
+        if (wanted.Length == 0) return "hover: usage hover <text>";
+
+        // Smallest match wins. A row is a Grid full of descendants, so a substring search hits the
+        // whole row before it hits the badge inside it — and reports the wrong tooltip while looking
+        // like it worked.
+        var candidates = _window.GetVisualDescendants().OfType<Control>()
+            .Where(c => c.IsEffectivelyVisible && ToolTip.GetTip(c) is not null)
+            .Select(c => new
+            {
+                Control = c,
+                Label = TextOf(c) is { Length: > 0 } t
+                    ? t
+                    : string.Join(" ", c.GetVisualDescendants().OfType<TextBlock>()
+                        .Select(x => x.Text ?? "")).Trim(),
+                Tip = ToolTip.GetTip(c)?.ToString() ?? "",
+            })
+            .Where(x => x.Label.Contains(wanted, StringComparison.OrdinalIgnoreCase)
+                        || x.Tip.Contains(wanted, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(x => x.Label.Length)
+            .ToList();
+
+        if (candidates.Count == 0) return $"hover: nothing visible with a tooltip matching '{wanted}'";
+
+        var best = candidates[0];
+        ToolTip.SetIsOpen(best.Control, true);
+
+        // The tip text is echoed because a tooltip lives in a popup that the screenshot path does
+        // not capture — so this line IS the evidence that it says what it should.
+        return $"hover: '{best.Label}'\n  tip: {best.Tip.Replace("\n", "\n       ")}";
     }
 
     private string SetText(string rest)

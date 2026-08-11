@@ -61,7 +61,7 @@ At the root of your mod's folder, next to its project file:
 | `version` | yes | Your mod's current version. **Bump it in the same commit that builds the release.** |
 | `gameVersion` | yes | The game version you built against, e.g. `0.12.10`. Matched **exactly**. |
 | `name` | yes | Display name. |
-| `side` | no | Where the mod has to be installed: `client`, `server` or `both`. Drives a badge and a filter. Omitted = "not stated". |
+| `side` | no | Which installs you have confirmed the mod works in: `client`, `server` or `both`. Drives a badge and a filter. Omitted = "not stated". |
 | `pluginFolder` | no | Folder under `BepInEx/plugins/`. Defaults to `id`. Must be a single folder name. |
 | `dependencies` | no | Mod **ids**. The client installs these first, and refuses if one of them is incompatible. |
 | `download` | yes | Either `{"url": "https://…"}` or `{"repo": "owner/name", "assetPattern": "Mod-v*.zip"}`. |
@@ -157,32 +157,34 @@ python3 tools/validate-manifest.py             # also fetches every mod manifest
 
 ---
 
-## Which side does your mod run on?
+## Which installs is your mod confirmed for?
 
-`side` answers the question a player asks before installing anything: *does this go on my machine,
-on the host, or on both?* It shows as a badge on your row and drives the **Runs on clients / Runs on
-servers** filter.
+`side` is a **compatibility claim**, not a statement about where files go — every mod installs into
+`BepInEx/plugins` the same way. The line it draws is online play, and it shows as a badge on your
+row plus a **Client supported / Server supported** filter.
 
-| Value | Means | Typical |
+| Value | You are saying | Typical |
 |---|---|---|
-| `client` | Only the player's own game needs it. | HUD, input, cosmetics, UI fixes |
-| `server` | Only the host needs it; installing it on a joiner does nothing. | Host-side rules, admin tooling |
-| `both` | Everyone playing together needs it. | Anything that changes shared gameplay |
+| `client` | Confirmed working on a client-only install — single-player or offline. **Nothing about online play.** | Most mods |
+| `server` | Confirmed working as a server install. | Host-side tooling |
+| `both` | Confirmed on both, **and it makes no changes that can disrupt online play**. | Mods deliberately built to be multiplayer-safe |
 
 ```json
-"side": "both"
+"side": "client"
 ```
 
-Two things worth knowing:
+Three things worth knowing:
 
-**`both` counts as either.** A player filtering for "runs on clients" sees `client` *and* `both`
-mods, because a mod everyone needs is a mod they need. You never have to pick the "safer" value to
-stay visible.
+**`client` is the honest default for most mods.** It is not a lesser value — it says you tested what
+you actually tested. Claiming `both` means asserting your mod cannot desync or otherwise interfere
+with a session someone else is hosting, which is a real promise and hard to make accidentally.
 
-**Omitting it is allowed and honest.** The field is optional, the badge simply does not appear, and
-nothing is blocked — the client says "not stated" rather than guessing. It is worth a few seconds of
-your time, though: a wrong guess sends someone to install a server-side mod on their client and
-wonder why nothing happened.
+**`both` shows under either filter.** A player filtering for "Client supported" sees `client` *and*
+`both` mods, because the second is the superset of the first. You never have to pick a weaker value
+to stay visible.
+
+**Omitting it is allowed and honest.** The badge simply does not appear and nothing is blocked — the
+client says "not stated" rather than guessing.
 
 A value that is present but misspelled is **rejected by CI**, deliberately. The client degrades an
 unrecognized value to "not stated", so a typo would otherwise cost you a badge silently.
@@ -241,7 +243,7 @@ normal and is stated as such.
 ## Checklist
 
 - [ ] `mod.json` in the repo, with `id`, `version`, `gameVersion`, `download`
-- [ ] `side` set to `client`, `server` or `both` (optional, but it is what players filter on)
+- [ ] `side` set to what you have actually confirmed — `client`, `server` or `both` (optional, but it is what players filter on)
 - [ ] `version` bumped in the same commit as the release build
 - [ ] `gameVersion` matches the build you compiled against
 - [ ] Release zip extracts to `BepInEx/plugins/<pluginFolder>/` and contains `mod.json`

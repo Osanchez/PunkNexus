@@ -249,25 +249,36 @@ public sealed class ServerEntry
 }
 
 /// <summary>
-/// Where a mod has to be installed for it to work.
+/// Which kinds of install a mod is CONFIRMED to work in.
+///
+/// Not "where the file goes" — every mod here installs into <c>BepInEx/plugins</c> the same way.
+/// This is a compatibility claim by the author, and the line it draws is online play: "I tested
+/// this by itself" and "this cannot disrupt a session with other people in it" are very different
+/// promises, and a player about to join a server needs to know which one they have.
 ///
 /// A controlled vocabulary rather than free text, because this drives a filter — and the region
 /// field on the server browser is the cautionary tale: free text nobody agrees on produces a filter
-/// with nothing filterable in it. Three values cover every mod in practice, and an author who omits
-/// it gets <see cref="Unstated"/>, which is a fact about the manifest and not a claim about the mod.
+/// with nothing filterable in it. An author who omits it gets <see cref="Unstated"/>, which is a
+/// fact about the manifest and not a claim about the mod.
 /// </summary>
 public enum ModSide
 {
     /// <summary>The author did not say, or said something this client does not recognize.</summary>
     Unstated,
 
-    /// <summary>Only the player's own game needs it — HUD, input, cosmetics.</summary>
+    /// <summary>
+    /// Confirmed on a client-only install — single-player or offline. Deliberately says nothing
+    /// about online play; that silence is the information.
+    /// </summary>
     Client,
 
-    /// <summary>Only the host needs it. Installing it on a joining client does nothing.</summary>
+    /// <summary>Confirmed as a server install.</summary>
     Server,
 
-    /// <summary>Every participant needs it, host and joiners alike.</summary>
+    /// <summary>
+    /// Confirmed on both, which is the stronger claim: the mod makes no changes that can disrupt
+    /// online play, so it is safe in a session with other people.
+    /// </summary>
     Both,
 }
 
@@ -301,13 +312,28 @@ public static class ModSides
         _ => "",
     };
 
-    /// <summary>The sentence shown on hover, which is where the actual advice belongs.</summary>
+    /// <summary>
+    /// The hover text, which is where the meaning actually lives. "client" and "client &amp; server"
+    /// are not self-explanatory on a badge — read cold they suggest where a file is copied to, which
+    /// is not what they mean at all — so each one states the claim in full.
+    /// </summary>
     public static string Explain(ModSide side) => side switch
     {
-        ModSide.Client => "Install on your own game. A server does not need it.",
-        ModSide.Server => "Install on the host or dedicated server. Installing it on a joining "
-                        + "client does nothing.",
-        ModSide.Both => "Everyone playing together needs this, host and joiners alike.",
-        _ => "This mod's author has not stated where it needs to be installed.",
+        ModSide.Client =>
+            "Confirmed working as a client-only install — single-player or offline.\n"
+            + "Not confirmed for online play, so it may or may not be safe in a session with "
+            + "other people.",
+
+        ModSide.Server =>
+            "Confirmed working as a server install.",
+
+        ModSide.Both =>
+            "Confirmed working on both client and server installs.\n"
+            + "The stronger claim: this mod makes no changes that can disrupt online play, so it "
+            + "is safe in a session with other people.",
+
+        _ =>
+            "This mod's author has not stated which installs it is confirmed for.\n"
+            + "Not a fault — the field is optional and many mods predate it.",
     };
 }

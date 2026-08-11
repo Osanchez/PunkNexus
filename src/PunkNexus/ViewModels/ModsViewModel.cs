@@ -10,13 +10,13 @@ public sealed partial class ModsViewModel : ViewModelBase
 {
     private const string AllCategories = "All categories";
 
-    // The side filter's options. Phrased as intent ("runs on") rather than as the raw value,
-    // because the useful question is "what do I install on this machine" -- and the answer to that
-    // for a client includes every mod marked `both`, which an exact-value filter would hide.
-    private const string AnySide = "Any side";
-    private const string RunsOnClients = "Runs on clients";
-    private const string RunsOnServers = "Runs on servers";
-    private const string SideNotStated = "Side not stated";
+    // "Confirmed for", not "runs on". The earlier wording described where a mod gets installed,
+    // which is not what the field means and is actively misleading: every mod installs the same
+    // way, and what differs is what its author has confirmed it safe for.
+    private const string AnySide = "Any support";
+    private const string ClientSupported = "Client supported";
+    private const string ServerSupported = "Server supported";
+    private const string SideNotStated = "Support not stated";
 
     private readonly AppServices _services;
     private readonly GameSession _session;
@@ -36,7 +36,16 @@ public sealed partial class ModsViewModel : ViewModelBase
 
     /// <summary>Fixed, unlike Categories: this is a controlled vocabulary, not whatever authors wrote.</summary>
     public ObservableCollection<string> Sides { get; } =
-        new() { AnySide, RunsOnClients, RunsOnServers, SideNotStated };
+        new() { AnySide, ClientSupported, ServerSupported, SideNotStated };
+
+    /// <summary>The vocabulary, explained on the filter itself — the dropdown labels alone do not
+    /// say that this is about confirmed compatibility rather than where a file is copied.</summary>
+    public string SideFilterTooltip =>
+        "What each mod's author has confirmed it works with.\n\n"
+        + "Client supported — confirmed for single-player or offline installs.\n"
+        + "Server supported — confirmed for a server install.\n\n"
+        + "A mod marked for both makes no changes that can disrupt online play, and appears "
+        + "under either filter.";
 
     [ObservableProperty] private string _search = "";
     [ObservableProperty] private string _selectedCategory = AllCategories;
@@ -457,12 +466,13 @@ public sealed partial class ModsViewModel : ViewModelBase
         if (!string.Equals(SelectedCategory, AllCategories, StringComparison.Ordinal))
             query = query.Where(m => string.Equals(m.Category, SelectedCategory, StringComparison.OrdinalIgnoreCase));
 
-        // `both` satisfies BOTH sides: a mod everyone needs is a mod a client needs. Filtering on
-        // the literal value would drop exactly the mods the question is usually about.
+        // `both` satisfies EITHER filter, because it is the superset claim: a mod confirmed for
+        // client and server is confirmed for a client. Matching the literal value would hide
+        // exactly the mods that are safest to install.
         query = SelectedSide switch
         {
-            RunsOnClients => query.Where(m => m.Side is ModSide.Client or ModSide.Both),
-            RunsOnServers => query.Where(m => m.Side is ModSide.Server or ModSide.Both),
+            ClientSupported => query.Where(m => m.Side is ModSide.Client or ModSide.Both),
+            ServerSupported => query.Where(m => m.Side is ModSide.Server or ModSide.Both),
             SideNotStated => query.Where(m => m.Side is ModSide.Unstated),
             _ => query,
         };

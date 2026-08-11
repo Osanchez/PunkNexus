@@ -10,6 +10,14 @@ public sealed partial class ModsViewModel : ViewModelBase
 {
     private const string AllCategories = "All categories";
 
+    // The side filter's options. Phrased as intent ("runs on") rather than as the raw value,
+    // because the useful question is "what do I install on this machine" -- and the answer to that
+    // for a client includes every mod marked `both`, which an exact-value filter would hide.
+    private const string AnySide = "Any side";
+    private const string RunsOnClients = "Runs on clients";
+    private const string RunsOnServers = "Runs on servers";
+    private const string SideNotStated = "Side not stated";
+
     private readonly AppServices _services;
     private readonly GameSession _session;
     private readonly List<ModRowViewModel> _all = new();
@@ -26,8 +34,13 @@ public sealed partial class ModsViewModel : ViewModelBase
     public ObservableCollection<ModRowViewModel> Visible { get; } = new();
     public ObservableCollection<string> Categories { get; } = new() { AllCategories };
 
+    /// <summary>Fixed, unlike Categories: this is a controlled vocabulary, not whatever authors wrote.</summary>
+    public ObservableCollection<string> Sides { get; } =
+        new() { AnySide, RunsOnClients, RunsOnServers, SideNotStated };
+
     [ObservableProperty] private string _search = "";
     [ObservableProperty] private string _selectedCategory = AllCategories;
+    [ObservableProperty] private string _selectedSide = AnySide;
     [ObservableProperty] private bool _installedOnly;
     [ObservableProperty] private bool _compatibleOnly;
     [ObservableProperty] private bool _isLoading;
@@ -157,6 +170,7 @@ public sealed partial class ModsViewModel : ViewModelBase
 
     partial void OnSearchChanged(string value) => ApplyFilter();
     partial void OnSelectedCategoryChanged(string value) => ApplyFilter();
+    partial void OnSelectedSideChanged(string value) => ApplyFilter();
     partial void OnInstalledOnlyChanged(bool value) => ApplyFilter();
     partial void OnCompatibleOnlyChanged(bool value) => ApplyFilter();
 
@@ -442,6 +456,16 @@ public sealed partial class ModsViewModel : ViewModelBase
 
         if (!string.Equals(SelectedCategory, AllCategories, StringComparison.Ordinal))
             query = query.Where(m => string.Equals(m.Category, SelectedCategory, StringComparison.OrdinalIgnoreCase));
+
+        // `both` satisfies BOTH sides: a mod everyone needs is a mod a client needs. Filtering on
+        // the literal value would drop exactly the mods the question is usually about.
+        query = SelectedSide switch
+        {
+            RunsOnClients => query.Where(m => m.Side is ModSide.Client or ModSide.Both),
+            RunsOnServers => query.Where(m => m.Side is ModSide.Server or ModSide.Both),
+            SideNotStated => query.Where(m => m.Side is ModSide.Unstated),
+            _ => query,
+        };
 
         if (InstalledOnly) query = query.Where(m => m.IsInstalled);
 

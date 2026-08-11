@@ -155,10 +155,11 @@ public sealed class SteamBrowser : IDisposable
 
         // Kick off (or refresh) the local latency measurement before reading any lobby. It is what
         // every per-row ping estimate is measured against, and it needs a moment on a cold start.
-        WarmPingData();
+        var pingReady = WarmPingData();
 
         var lobbies = await RequestLobbyListAsync(ct).ConfigureAwait(false);
         var servers = new List<ServerEntry>(lobbies.Count);
+        int withLocation = 0, withRegion = 0;
 
         foreach (var lobby in lobbies)
         {
@@ -166,7 +167,11 @@ public sealed class SteamBrowser : IDisposable
             try
             {
                 var entry = ReadLobby(lobby);
-                if (entry is not null) servers.Add(entry);
+                if (entry is null) continue;
+
+                servers.Add(entry);
+                if (entry.PingMs is not null) withLocation++;
+                if (!string.IsNullOrWhiteSpace(entry.Region)) withRegion++;
             }
             catch (Exception ex)
             {
@@ -175,6 +180,19 @@ public sealed class SteamBrowser : IDisposable
         }
 
         Log.Info($"Steam returned {servers.Count} listed session(s).");
+
+        // An empty ping or region column has several causes that look identical on screen, and
+        // guessing between them from a screenshot is exactly the kind of hunt this project keeps
+        // paying for. So say which one it is: our own measurement not ready, versus hosts that
+        // published nothing for us to work with.
+        if (servers.Count > 0 && (withLocation < servers.Count || withRegion < servers.Count))
+            Log.Info(
+                $"Ping estimated for {withLocation}/{servers.Count} row(s), region published by "
+                + $"{withRegion}/{servers.Count}; local ping data "
+                + (pingReady ? "is ready" : "is NOT ready yet")
+                + ". A row with no ping means that host published no network location — hosts on "
+                + "PunkMultiverse before 0.1.248, or still measuring.");
+
         return servers;
     }
 

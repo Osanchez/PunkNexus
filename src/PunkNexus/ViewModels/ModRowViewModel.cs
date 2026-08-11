@@ -150,6 +150,25 @@ public sealed partial class ModRowViewModel : ViewModelBase
         _ => "",
     };
 
+    // ---------------------------------------------------------------- where it has to be installed
+
+    /// <summary>
+    /// Client, server, both — or unstated. Read from the PUBLISHED manifest, falling back to the
+    /// installed copy so a mod whose manifest cannot be fetched right now still shows what the
+    /// build on disk declared.
+    /// </summary>
+    public ModSide Side => ModSides.Parse(Published?.Side ?? Installed?.Side);
+
+    /// <summary>
+    /// No badge when the author has not said. An "unstated" pill on most rows would be noise on the
+    /// one axis where the honest answer is silence — and it would make a catalog of older mods look
+    /// like it had a problem, when all that is missing is a field they predate.
+    /// </summary>
+    public bool ShowSideBadge => Side != ModSide.Unstated;
+
+    public string SideBadge => ModSides.Badge(Side);
+    public string SideTooltip => ModSides.Explain(Side);
+
     public string VersionLabel =>
         IsInstalled && !string.IsNullOrWhiteSpace(InstalledVersion) ? $"v{InstalledVersion}"
         : !string.IsNullOrWhiteSpace(PublishedVersion) ? $"v{PublishedVersion}"
@@ -469,6 +488,10 @@ public sealed partial class ModRowViewModel : ViewModelBase
         OnPropertyChanged(nameof(ShowScanBadge));
         OnPropertyChanged(nameof(ScanBadge));
         OnPropertyChanged(nameof(ScanTooltip));
+        OnPropertyChanged(nameof(Side));
+        OnPropertyChanged(nameof(ShowSideBadge));
+        OnPropertyChanged(nameof(SideBadge));
+        OnPropertyChanged(nameof(SideTooltip));
     }
 
     partial void OnScanChanged(ScanRecord? value) => NotifyDerived();

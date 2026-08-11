@@ -93,6 +93,14 @@ public sealed class ModManifest
     [JsonPropertyName("homepage")] public string? Homepage { get; set; }
     [JsonPropertyName("tags")] public List<string> Tags { get; set; } = new();
 
+    /// <summary>
+    /// Where this mod has to be installed to do its job: <c>client</c>, <c>server</c> or
+    /// <c>both</c>. Optional, and absent means the author has not said — which is reported as
+    /// "not stated" rather than guessed at, because guessing wrong sends someone to install a
+    /// server-side mod on their client and wonder why nothing happens.
+    /// </summary>
+    [JsonPropertyName("side")] public string? Side { get; set; }
+
     /// <summary>Folder created under <c>BepInEx/plugins/</c>. Defaults to the id.</summary>
     [JsonPropertyName("pluginFolder")] public string? PluginFolder { get; set; }
 
@@ -238,4 +246,68 @@ public sealed class ServerEntry
         : "";
 
     public string SourceLabel => Source == ServerSource.Steam ? "Steam" : "Self-hosted";
+}
+
+/// <summary>
+/// Where a mod has to be installed for it to work.
+///
+/// A controlled vocabulary rather than free text, because this drives a filter — and the region
+/// field on the server browser is the cautionary tale: free text nobody agrees on produces a filter
+/// with nothing filterable in it. Three values cover every mod in practice, and an author who omits
+/// it gets <see cref="Unstated"/>, which is a fact about the manifest and not a claim about the mod.
+/// </summary>
+public enum ModSide
+{
+    /// <summary>The author did not say, or said something this client does not recognize.</summary>
+    Unstated,
+
+    /// <summary>Only the player's own game needs it — HUD, input, cosmetics.</summary>
+    Client,
+
+    /// <summary>Only the host needs it. Installing it on a joining client does nothing.</summary>
+    Server,
+
+    /// <summary>Every participant needs it, host and joiners alike.</summary>
+    Both,
+}
+
+public static class ModSides
+{
+    /// <summary>The wire values, which are what an author writes in mod.json.</summary>
+    public const string ClientValue = "client";
+    public const string ServerValue = "server";
+    public const string BothValue = "both";
+
+    /// <summary>
+    /// Reads the declared value, tolerantly. An unrecognized string becomes
+    /// <see cref="ModSide.Unstated"/> rather than an error: a manifest is fetched live from an
+    /// author's repository and can say anything, and a value this build does not understand is not
+    /// a reason to refuse to list the mod.
+    /// </summary>
+    public static ModSide Parse(string? value) => (value ?? "").Trim().ToLowerInvariant() switch
+    {
+        ClientValue => ModSide.Client,
+        ServerValue => ModSide.Server,
+        BothValue or "clientserver" or "client/server" => ModSide.Both,
+        _ => ModSide.Unstated,
+    };
+
+    /// <summary>Badge text. Lowercase to sit with the other pills on a row.</summary>
+    public static string Badge(ModSide side) => side switch
+    {
+        ModSide.Client => "client",
+        ModSide.Server => "server",
+        ModSide.Both => "client & server",
+        _ => "",
+    };
+
+    /// <summary>The sentence shown on hover, which is where the actual advice belongs.</summary>
+    public static string Explain(ModSide side) => side switch
+    {
+        ModSide.Client => "Install on your own game. A server does not need it.",
+        ModSide.Server => "Install on the host or dedicated server. Installing it on a joining "
+                        + "client does nothing.",
+        ModSide.Both => "Everyone playing together needs this, host and joiners alike.",
+        _ => "This mod's author has not stated where it needs to be installed.",
+    };
 }

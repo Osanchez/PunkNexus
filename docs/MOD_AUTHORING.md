@@ -44,6 +44,7 @@ At the root of your mod's folder, next to its project file:
   "iconUrl": null,
   "homepage": "https://github.com/Osanchez/PunkMods",
   "tags": ["co-op", "hud"],
+  "side": "client",
   "pluginFolder": "PunkScoreboard",
   "dependencies": [],
   "download": {
@@ -60,6 +61,7 @@ At the root of your mod's folder, next to its project file:
 | `version` | yes | Your mod's current version. **Bump it in the same commit that builds the release.** |
 | `gameVersion` | yes | The game version you built against, e.g. `0.12.10`. Matched **exactly**. |
 | `name` | yes | Display name. |
+| `side` | no | Where the mod has to be installed: `client`, `server` or `both`. Drives a badge and a filter. Omitted = "not stated". |
 | `pluginFolder` | no | Folder under `BepInEx/plugins/`. Defaults to `id`. Must be a single folder name. |
 | `dependencies` | no | Mod **ids**. The client installs these first, and refuses if one of them is incompatible. |
 | `download` | yes | Either `{"url": "https://…"}` or `{"repo": "owner/name", "assetPattern": "Mod-v*.zip"}`. |
@@ -155,6 +157,38 @@ python3 tools/validate-manifest.py             # also fetches every mod manifest
 
 ---
 
+## Which side does your mod run on?
+
+`side` answers the question a player asks before installing anything: *does this go on my machine,
+on the host, or on both?* It shows as a badge on your row and drives the **Runs on clients / Runs on
+servers** filter.
+
+| Value | Means | Typical |
+|---|---|---|
+| `client` | Only the player's own game needs it. | HUD, input, cosmetics, UI fixes |
+| `server` | Only the host needs it; installing it on a joiner does nothing. | Host-side rules, admin tooling |
+| `both` | Everyone playing together needs it. | Anything that changes shared gameplay |
+
+```json
+"side": "both"
+```
+
+Two things worth knowing:
+
+**`both` counts as either.** A player filtering for "runs on clients" sees `client` *and* `both`
+mods, because a mod everyone needs is a mod they need. You never have to pick the "safer" value to
+stay visible.
+
+**Omitting it is allowed and honest.** The field is optional, the badge simply does not appear, and
+nothing is blocked — the client says "not stated" rather than guessing. It is worth a few seconds of
+your time, though: a wrong guess sends someone to install a server-side mod on their client and
+wonder why nothing happened.
+
+A value that is present but misspelled is **rejected by CI**, deliberately. The client degrades an
+unrecognized value to "not stated", so a typo would otherwise cost you a badge silently.
+
+---
+
 ## Game-version compatibility
 
 `gameVersion` is compared for **exact equality** against the version the client reads out of the
@@ -207,6 +241,7 @@ normal and is stated as such.
 ## Checklist
 
 - [ ] `mod.json` in the repo, with `id`, `version`, `gameVersion`, `download`
+- [ ] `side` set to `client`, `server` or `both` (optional, but it is what players filter on)
 - [ ] `version` bumped in the same commit as the release build
 - [ ] `gameVersion` matches the build you compiled against
 - [ ] Release zip extracts to `BepInEx/plugins/<pluginFolder>/` and contains `mod.json`

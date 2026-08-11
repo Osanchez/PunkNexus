@@ -46,6 +46,7 @@ public interface IUpdateOverlayPreview
 ///   uidump                 every interactive control: kind, id, text, enabled, visible
 ///   click &lt;id-or-text&gt;     invoke the first match (buttons, tabs, checkboxes, list rows)
 ///   settext &lt;id&gt; &lt;value&gt;   set a TextBox's text
+///   select &lt;item&gt;            pick an item in whichever ComboBox offers it
 ///   tab &lt;name&gt;             select a tab by header
 ///   screenshot &lt;name&gt;      render THIS WINDOW to shots\&lt;name&gt;.png
 ///   dialog                 whether a modal is open, its title and its buttons
@@ -163,6 +164,7 @@ public sealed class DiagHarness
             }
             case "tab": Out(SelectTab(rest)); return;
             case "settext": Out(SetText(rest)); return;
+            case "select": Out(SelectItem(rest)); return;
             case "screenshot": Out(Screenshot(rest)); return;
             case "state": Out(State()); return;
             case "updateui": Out(PreviewUpdate(rest)); return;
@@ -478,6 +480,35 @@ public sealed class DiagHarness
                  + string.Join(", ", Interactive().OfType<TabItem>().Select(t => t.Header?.ToString()));
         tab.IsSelected = true;
         return $"tab: '{tab.Header}' selected";
+    }
+
+    /// <summary>
+    /// Picks an item in a ComboBox by its text, searching every visible ComboBox for one that
+    /// offers it. Identified by the ITEM rather than by the control, because these combos carry no
+    /// distinguishing name in the tree -- a uidump shows several controls all called 'ComboBox' --
+    /// and the item text is the thing a test actually knows.
+    /// </summary>
+    private string SelectItem(string rest)
+    {
+        var wanted = rest.Trim();
+        if (wanted.Length == 0) return "select: usage select <item text>";
+
+        foreach (var combo in _window.GetVisualDescendants().OfType<ComboBox>()
+                     .Where(c => c.IsEffectivelyVisible))
+        {
+            if (combo.ItemsSource is not System.Collections.IEnumerable items) continue;
+
+            foreach (var item in items)
+            {
+                if (!string.Equals(item?.ToString(), wanted, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                combo.SelectedItem = item;
+                return $"select: '{wanted}'";
+            }
+        }
+
+        return $"select: no visible ComboBox offers '{wanted}'";
     }
 
     private string SetText(string rest)

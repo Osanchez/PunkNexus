@@ -43,15 +43,20 @@
           </StackPanel>
         </Grid>
 
-        <Grid ColumnDefinitions="*,180,Auto,Auto" ColumnSpacing="12">
+        <Grid ColumnDefinitions="*,180,170,Auto,Auto" ColumnSpacing="12">
           <TextBox Grid.Column="0" Text="{Binding Search, Mode=TwoWay}"
                    Watermark="Search mods, authors, tags…" />
           <ComboBox Grid.Column="1" ItemsSource="{Binding Categories}"
                     SelectedItem="{Binding SelectedCategory, Mode=TwoWay}"
                     HorizontalAlignment="Stretch" />
-          <CheckBox Grid.Column="2" Content="Installed only" VerticalAlignment="Center"
+          <!-- Client / server. Sits beside category because it is the same kind of question:
+               narrowing a big list to the mods that apply to you. -->
+          <ComboBox Grid.Column="2" ItemsSource="{Binding Sides}"
+                    SelectedItem="{Binding SelectedSide, Mode=TwoWay}"
+                    HorizontalAlignment="Stretch" />
+          <CheckBox Grid.Column="3" Content="Installed only" VerticalAlignment="Center"
                     IsChecked="{Binding InstalledOnly, Mode=TwoWay}" />
-          <CheckBox Grid.Column="3" Content="Compatible only" VerticalAlignment="Center"
+          <CheckBox Grid.Column="4" Content="Compatible only" VerticalAlignment="Center"
                     IsChecked="{Binding CompatibleOnly, Mode=TwoWay}" />
         </Grid>
 
@@ -203,6 +208,16 @@
                                 IsVisible="{Binding ShowCompatibilityBadge}"
                                 ToolTip.Tip="{Binding CompatibilityText}">
                           <TextBlock Text="{Binding CompatibilityBadge}" />
+                        </Border>
+
+                        <!-- Where the mod has to be installed. Neutral, like the game-version
+                             pill beside it: a fact about the mod, not a judgement. Absent entirely
+                             when the author has not said, because a row of "unstated" pills would
+                             be noise on the one axis where silence is the honest answer. -->
+                        <Border Classes="pill" VerticalAlignment="Center"
+                                IsVisible="{Binding ShowSideBadge}"
+                                ToolTip.Tip="{Binding SideTooltip}">
+                          <TextBlock Text="{Binding SideBadge}" />
                         </Border>
 
                         <Border Classes="pill warn" VerticalAlignment="Center"

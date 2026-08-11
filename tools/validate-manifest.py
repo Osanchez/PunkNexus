@@ -27,6 +27,9 @@ SERVERS = REPO_ROOT / "manifest" / "servers.json"
 
 ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 SUPPORTED_SCHEMA = 1
+
+# Where a mod has to be installed. Mirrors ModSides in the client; keep the two in step.
+SIDES = {"client", "server", "both"}
 TIMEOUT = 20
 
 errors: list[str] = []
@@ -137,6 +140,17 @@ def validate_mod_manifest(entry_id: str, url: str, manifest, target_game_version
             f"{where}: built for game {game_version} but the registry targets {target_game_version}, "
             "so the client will refuse to install it."
         )
+
+    # `side` is optional -- plenty of listed mods predate it -- but a value that is present and
+    # wrong is worse than one that is absent: the client cannot render it, so it silently degrades
+    # to "not stated" and the author never learns their typo cost them a badge and a filter slot.
+    side = manifest.get("side")
+    if side is not None:
+        if not isinstance(side, str) or side.strip().lower() not in SIDES:
+            error(
+                f"{where}: side '{side}' is not one of {', '.join(sorted(SIDES))}. "
+                "Omit it entirely if the mod does not fit one of those."
+            )
 
     plugin_folder = manifest.get("pluginFolder") or mod_id or entry_id
     if any(sep in str(plugin_folder) for sep in ("/", "\\")) or ".." in str(plugin_folder):

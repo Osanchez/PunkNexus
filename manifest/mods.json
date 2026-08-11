@@ -4,7 +4,7 @@
   "targetGameVersion": "0.12.11",
   "loader": {
     "name": "BepInEx",
-    "version": "5.4.23.3",
+    "version": "6.0.0-be.785",
     "downloadUrl": "https://github.com/Osanchez/PunkMods/releases/download/v2026.08.09.19/BepInEx-Setup.zip",
     "sha256": "701f348b7721c49b4163d9d2505d2c73444b8bd2a72da6a86ef33065a6456155",
     "infoUrl": "https://github.com/Osanchez/PunkMods/blob/main/INSTALL.md"

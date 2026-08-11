@@ -126,6 +126,16 @@ public sealed class InstallService
             throw new InstallException(
                 "BepInEx is not installed yet. Install it first — mods cannot load without it.");
 
+        // Validate the destination ONCE, before anything is fetched, and use this value for the
+        // rest of the method. Everything below — the replace-first removal, the extraction
+        // boundary, the recorded state — then refers to a name that has been checked, rather than
+        // re-deriving it from the manifest and trusting the checks to have run in the right order.
+        var pluginFolder = manifest.EffectivePluginFolder;
+        if (!ModManifest.IsSafePluginFolderName(pluginFolder))
+            throw new InstallException(
+                $"{manifest.Name} asks to install into '{pluginFolder}', which is a path rather than " +
+                "a folder name under BepInEx\\plugins. Nothing was downloaded.");
+
         var asset = await _resolver.ResolveAsync(manifest.Download, ct).ConfigureAwait(false)
                     ?? throw new InstallException(
                         $"No download is published for {manifest.Name} yet. Its manifest does not " +
@@ -143,14 +153,14 @@ public sealed class InstallService
 
             // Replacing an existing copy: drop the old files first so a renamed DLL cannot linger
             // and get loaded alongside the new one.
-            if (IsModInstalled(gameRoot, manifest.EffectivePluginFolder))
-                RemoveModFiles(gameRoot, manifest.Id, manifest.EffectivePluginFolder, manifest.Name, keepState: true);
+            if (IsModInstalled(gameRoot, pluginFolder))
+                RemoveModFiles(gameRoot, manifest.Id, pluginFolder, manifest.Name, keepState: true);
 
-            // Confined to this mod's own plugin folder. The verification above should already have
-            // refused anything that would land elsewhere; this makes it impossible rather than
-            // merely checked, so a gap in those checks cannot cost someone another mod's files.
+            // Confined to this mod's own plugin folder. The boundary is the name validated at the
+            // top of this method, so it is a folder under BepInEx\plugins by construction — the
+            // confinement cannot be widened by the manifest that is being confined.
             var written = ZipSafe.Extract(zip, gameRoot, null, ct,
-                confineTo: $"{PluginsRelative}/{manifest.EffectivePluginFolder}").ToList();
+                confineTo: $"{PluginsRelative}/{pluginFolder}").ToList();
             EnsureInstalledManifest(gameRoot, manifest, written);
 
             var state = _store.Load(gameRoot);
@@ -159,7 +169,7 @@ public sealed class InstallService
                 Id = manifest.Id,
                 Version = manifest.Version,
                 InstalledUtc = DateTime.UtcNow.ToString("o"),
-                PluginFolder = manifest.EffectivePluginFolder,
+                PluginFolder = pluginFolder,
                 Files = written,
             };
             _store.Save(gameRoot, state);
@@ -242,6 +252,19 @@ public sealed class InstallService
             // deleted them. Folder identity is the check that catches the substitution itself.
             var folders = ZipSafe.PluginFolders(zipPath, PluginsRelative);
             var expectedFolder = published.EffectivePluginFolder;
+
+            // The folder the manifest asks for must be a NAME, not a path. Checked here as well as
+            // in PluginFolderPath because this is the one that can explain itself: the user gets
+            // the refusal dialog with a reason, before a byte is written, instead of an exception
+            // partway through an install. See ModManifest.IsSafePluginFolderName for why a path
+            // here is not merely untidy.
+            if (!ModManifest.IsSafePluginFolderName(expectedFolder))
+            {
+                failed = true;
+                details.Add(new DialogDetail(
+                    $"The manifest asks to install into '{expectedFolder}', which is a path rather " +
+                    "than a folder name under BepInEx\\plugins", false));
+            }
             var foreign = folders
                 .Where(f => !string.Equals(f, expectedFolder, StringComparison.OrdinalIgnoreCase))
                 .ToList();
@@ -559,10 +582,24 @@ public sealed class InstallService
 
     // ---------------------------------------------------------------- helpers
 
-    private static string PluginFolderPath(string gameRoot, string pluginFolder) =>
-        Path.GetFullPath(Path.Combine(gameRoot,
+    /// <summary>
+    /// Every plugin-folder path in this class is built here, which makes it the one place that
+    /// cannot be bypassed — including uninstall, which is handed a folder name PERSISTED from an
+    /// earlier install rather than one just read from a manifest. Verification refuses a bad name
+    /// before anything is downloaded; this refuses to turn one into a path at all, so a state file
+    /// written by an older build (or by hand) cannot aim a recursive delete at the game's files.
+    /// </summary>
+    private static string PluginFolderPath(string gameRoot, string pluginFolder)
+    {
+        if (!ModManifest.IsSafePluginFolderName(pluginFolder))
+            throw new InstallException(
+                $"'{pluginFolder}' is not a valid plugin folder name — it must be a single folder " +
+                "under BepInEx\\plugins, not a path. Nothing was changed.");
+
+        return Path.GetFullPath(Path.Combine(gameRoot,
             PluginsRelative.Replace('/', Path.DirectorySeparatorChar),
             pluginFolder));
+    }
 
     private static bool IsInside(string root, string candidate)
     {

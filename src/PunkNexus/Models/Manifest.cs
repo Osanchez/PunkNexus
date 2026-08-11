@@ -105,6 +105,34 @@ public sealed class ModManifest
     public string EffectivePluginFolder =>
         string.IsNullOrWhiteSpace(PluginFolder) ? Id : PluginFolder!;
 
+    /// <summary>
+    /// True when a plugin folder is a single folder NAME rather than a path.
+    ///
+    /// This value arrives in a mod's own <c>mod.json</c>, fetched at runtime from the author's
+    /// repository, and the client turns it into a real directory in two places that matter: it is
+    /// the confinement boundary every extracted entry is checked against, and it is the directory
+    /// uninstall removes recursively. A value like <c>../../Punk_Data</c> resolves to a real folder
+    /// INSIDE the game directory, so the game-root guards on both paths still pass — and both are
+    /// then pointed at the game's own files instead of at the mod's.
+    ///
+    /// <c>tools/validate-manifest.py</c> has always rejected this, but it runs on pull requests
+    /// against the catalog in THIS repository, while the manifest it validated lives in the
+    /// author's repository and can change afterwards with nothing re-checking it. A compromised or
+    /// substituted listed mod is the exact case the checksum gate and the scan reports exist for,
+    /// so the same rule has to hold on the client, at install time, against the bytes fetched.
+    /// </summary>
+    public static bool IsSafePluginFolderName(string? folder)
+    {
+        if (string.IsNullOrWhiteSpace(folder)) return false;
+        if (folder.Contains('/') || folder.Contains('\\')) return false;
+        if (folder.Contains("..")) return false;
+        // "C:", "C:x" and a leading separator all escape once combined.
+        if (folder.Contains(':') || Path.IsPathRooted(folder)) return false;
+        // Path.Combine would collapse these onto the plugins directory itself.
+        if (folder is "." or "..") return false;
+        return folder.IndexOfAny(Path.GetInvalidFileNameChars()) < 0;
+    }
+
     /// <summary>The file name this manifest takes in the mod folder, published and installed alike.</summary>
     public const string FileName = "mod.json";
 }

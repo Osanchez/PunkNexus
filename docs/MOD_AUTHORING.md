@@ -162,16 +162,20 @@ user's own install (`Punk_Data/globalgamemanagers`), not against anything the ca
 
 | Situation | What the user sees |
 |---|---|
-| Exact match | Installs normally. |
-| Different version | **Install blocked**, red badge, "Built for game X, but yours is Y." |
-| No `gameVersion` | **Install blocked**, "does not declare which game version it was built for". |
-| Client cannot read the game's version | Nothing blocked — an amber note says compatibility was not checked. |
+| Exact match | Installs normally, no badge. |
+| Different version | Installs, amber badge, "Built for game X, but yours is Y." |
+| No `gameVersion` | Installs, amber badge — it does not say what it was built for. |
+| Client cannot read the game's version | Installs, amber note saying compatibility was not checked. |
 
-Two consequences worth planning around:
+**A mismatch warns; it does not block.** It was a refusal once, and the game moving 0.12.10 →
+0.12.11 made all sixteen listed mods uninstallable in a single afternoon, most of them untouched by
+the change. Exact matching is a good detector and a bad gate, so the badge is the whole consequence.
 
-**A game update makes your mod uninstallable until you publish a build for it.** That is the
-intended behavior of exact matching — it trades convenience for never installing a mod into a game
-it was not built against. When the game updates, rebuild, bump `gameVersion`, release.
+One consequence worth planning around:
+
+**A game update makes your mod look stale until you publish a build for it.** Users can still
+install it, over an amber badge naming the mismatch. When the game updates, rebuild, bump
+`gameVersion`, release — and the badge clears itself.
 
 **Users who already installed you keep the mod**, and see an amber *outdated* badge instead: the
 client compares the `gameVersion` in their installed `mod.json` against their current game. They can

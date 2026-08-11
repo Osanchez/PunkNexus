@@ -17,8 +17,10 @@ launches the game, and joins for you — then puts your own mods back when you'r
 2. Run it. It is a single self-contained file — put it wherever you like.
 3. Accept the risk notice, confirm the game folder it found, and you're in.
 
-There is no installer and nothing is written outside `%LOCALAPPDATA%\PunkNexus\` and the game folder
-you point it at.
+There is no installer. Settings, logs and caches live in `%LOCALAPPDATA%\PunkNexus\`, mods go in the
+game folder you point it at, and the only other thing written anywhere is the update: it stages the
+new build beside the running exe (`PunkNexus.update.exe`, and the old build as `PunkNexus.exe.old`)
+because that is the only place a program can replace itself from.
 
 ---
 
@@ -112,26 +114,35 @@ The client's rule is that **nothing is ever deleted to make room.** Anything in 
 to `BepInEx\nexus-shelf\` and moved back afterwards, byte for byte — because a mod you installed by
 hand has no download to repeat, and a mod's tuned settings often live inside its own plugin folder.
 
-You see exactly what will change before anything moves, and your own mods come back three ways:
-when the game exits, when the client next starts (if it was closed or crashed mid-session), or from
-a **Restore my mods** button.
+You see exactly what will change before anything moves, and your own mods come back on their own:
+when the game exits, and — if the client was closed or crashed mid-session — when it next starts.
+There is no button to press and no banner telling you a visit is in progress; a server visit is
+meant to be invisible, and something you have to undo by hand is not.
 
 ---
 
 ## Game-version compatibility
 
 A mod declares the game version it was built against, and the client compares that for **exact
-equality** against the version detected in your install. The asymmetry is deliberate:
+equality** against the version detected in your install. What it does with the answer is **tell
+you, and let you decide**:
 
 | Situation | Result |
 |---|---|
-| Mod declares your exact game version | Installable |
-| Mod declares a different version | Blocked, and labelled with what it needs |
-| Mod declares nothing | Blocked — an undeclared mod is an untested one |
-| Client cannot read your game version | **Not** blocked; everything is listed with a warning |
+| Mod declares your exact game version | Installable, no warning |
+| Mod declares a different version | Installable, warned — "Built for game X, but yours is Y" |
+| Mod declares nothing | Installable, warned — it does not say what it was built for |
+| Client cannot read your game version | Installable, warned — the detection failed, not the mod |
 
-The last row is the important one. A failure to detect is the *client's* problem, and it must not
-lock you out of your own mods.
+This used to be a refusal, and it was wrong. The game moving from 0.12.10 to 0.12.11 made **every
+one of the sixteen listed mods uninstallable overnight**, most of which were unaffected by the
+change — a compatibility rule strict enough to be useless. A version mismatch is a good reason to
+warn somebody and a bad reason to stop them, so it warns.
+
+The two things that *do* stop an install are different in kind: a download whose published
+checksum does not match, and an archive whose contents are not the mod you asked for. Those are
+statements about whether the bytes are what they claim to be, not guesses about whether they will
+work.
 
 ---
 

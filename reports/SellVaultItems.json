@@ -3,6 +3,26 @@
   "modId": "SellVaultItems",
   "scans": [
     {
+      "sha256": "77c7941681aab972b6a3a2570836ec4249c88d021b3867f3a73427e30a2f8e49",
+      "fileName": "SellVaultItems-v1.0.0.zip",
+      "sizeBytes": 8159,
+      "downloadUrl": "https://github.com/Osanchez/PunkMods/releases/download/v2026.08.15.20/SellVaultItems-v1.0.0.zip",
+      "modVersion": "1.0.0",
+      "declaredSha256": "77c7941681aab972b6a3a2570836ec4249c88d021b3867f3a73427e30a2f8e49",
+      "declaredMatches": true,
+      "scannedUtc": "2026-08-16T05:09:01Z",
+      "permalink": "https://www.virustotal.com/gui/file/77c7941681aab972b6a3a2570836ec4249c88d021b3867f3a73427e30a2f8e49",
+      "enginesTotal": 67,
+      "detections": 0,
+      "malicious": 0,
+      "suspicious": 0,
+      "detectedBy": [],
+      "status": "completed",
+      "analyzedUtc": "2026-08-16T05:09:01Z",
+      "analysisId": "Yzc5YTk3YzU2MjBjMTBkZDAzYTkyNTA2OWNmN2VjNDQ6MTc4Njg1Njg4Mw==",
+      "source": "upload"
+    },
+    {
       "sha256": "7f4789d1bd9fc94804d215c12d62f5adf9d9a3bee022d0ede1968a4a9692609b",
       "fileName": "SellVaultItems-v1.0.0.zip",
       "sizeBytes": 8161,

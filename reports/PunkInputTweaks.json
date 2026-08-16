@@ -3,6 +3,26 @@
   "modId": "PunkInputTweaks",
   "scans": [
     {
+      "sha256": "dbedc65688205140e2091d8edf4152262e553f83e452bace25d80782e92a68b2",
+      "fileName": "PunkInputTweaks-v1.0.0.zip",
+      "sizeBytes": 4572,
+      "downloadUrl": "https://github.com/Osanchez/PunkMods/releases/download/v2026.08.15.20/PunkInputTweaks-v1.0.0.zip",
+      "modVersion": "1.0.0",
+      "declaredSha256": "dbedc65688205140e2091d8edf4152262e553f83e452bace25d80782e92a68b2",
+      "declaredMatches": true,
+      "scannedUtc": "2026-08-16T05:11:02Z",
+      "permalink": "https://www.virustotal.com/gui/file/dbedc65688205140e2091d8edf4152262e553f83e452bace25d80782e92a68b2",
+      "enginesTotal": 67,
+      "detections": 0,
+      "malicious": 0,
+      "suspicious": 0,
+      "detectedBy": [],
+      "status": "completed",
+      "analyzedUtc": "2026-08-16T05:11:02Z",
+      "analysisId": "MjJjY2VlMmFhMzQ1MTAyODI0MGVlM2E5NWFiOTEzMTk6MTc4Njg1Njk0Mw==",
+      "source": "upload"
+    },
+    {
       "sha256": "057a5f66a76919195f2fbca74da71d16ac50a6802ab222ddf9349c863f8014de",
       "fileName": "PunkInputTweaks-v1.0.0.zip",
       "sizeBytes": 4581,

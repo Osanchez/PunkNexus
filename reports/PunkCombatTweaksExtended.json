@@ -3,6 +3,26 @@
   "modId": "PunkCombatTweaksExtended",
   "scans": [
     {
+      "sha256": "97f1f104476b30733d66ef93b272f4e63d327de4d87e617fb8bf165f72501cd3",
+      "fileName": "PunkCombatTweaksExtended-v1.1.0.zip",
+      "sizeBytes": 5526,
+      "downloadUrl": "https://github.com/Osanchez/PunkMods/releases/download/v2026.08.15.20/PunkCombatTweaksExtended-v1.1.0.zip",
+      "modVersion": "1.1.0",
+      "declaredSha256": "97f1f104476b30733d66ef93b272f4e63d327de4d87e617fb8bf165f72501cd3",
+      "declaredMatches": true,
+      "scannedUtc": "2026-08-16T04:55:54Z",
+      "permalink": "https://www.virustotal.com/gui/file/97f1f104476b30733d66ef93b272f4e63d327de4d87e617fb8bf165f72501cd3",
+      "enginesTotal": 67,
+      "detections": 0,
+      "malicious": 0,
+      "suspicious": 0,
+      "detectedBy": [],
+      "status": "completed",
+      "analyzedUtc": "2026-08-16T04:55:54Z",
+      "analysisId": "Y2Q4ODRlNDkwOTM0NzNjMTJjYTc1ZTM4NGQyMWRlMjY6MTc4Njg1NjAzNg==",
+      "source": "upload"
+    },
+    {
       "sha256": "776345aa0527bf3848ed4145840efab1425146875c254063e50aad20b2ffac89",
       "fileName": "PunkCombatTweaksExtended-v1.1.0.zip",
       "sizeBytes": 5529,

@@ -3,6 +3,26 @@
   "modId": "PunkSimController",
   "scans": [
     {
+      "sha256": "203ed4535d29c315f01f1b9cbbf4768c77c8bcb8d0140f91d3d6458c8a4105df",
+      "fileName": "PunkSimController-v1.0.0.zip",
+      "sizeBytes": 8829,
+      "downloadUrl": "https://github.com/Osanchez/PunkMods/releases/download/v2026.08.15.20/PunkSimController-v1.0.0.zip",
+      "modVersion": "1.0.0",
+      "declaredSha256": "203ed4535d29c315f01f1b9cbbf4768c77c8bcb8d0140f91d3d6458c8a4105df",
+      "declaredMatches": true,
+      "scannedUtc": "2026-08-16T05:15:04Z",
+      "permalink": "https://www.virustotal.com/gui/file/203ed4535d29c315f01f1b9cbbf4768c77c8bcb8d0140f91d3d6458c8a4105df",
+      "enginesTotal": 65,
+      "detections": 0,
+      "malicious": 0,
+      "suspicious": 0,
+      "detectedBy": [],
+      "status": "completed",
+      "analyzedUtc": "2026-08-16T05:15:04Z",
+      "analysisId": "YjQxZjE3ZTFmOWVlNzJkNjdiNWM5MmNkNDEzNGMzZTA6MTc4Njg1NzE4NQ==",
+      "source": "upload"
+    },
+    {
       "sha256": "0c680479fca8f6154887204434bd6e3e8656b1bb23826f1d711d99d3d67d1610",
       "fileName": "PunkSimController-v1.0.0.zip",
       "sizeBytes": 8832,

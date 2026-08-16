@@ -3,6 +3,26 @@
   "modId": "PunkSeedPicker",
   "scans": [
     {
+      "sha256": "42fee1aa3770226090e015e879e66e8c397c91eadfbe1448063013707f2fa339",
+      "fileName": "PunkSeedPicker-v1.0.0.zip",
+      "sizeBytes": 11350,
+      "downloadUrl": "https://github.com/Osanchez/PunkMods/releases/download/v2026.08.15.20/PunkSeedPicker-v1.0.0.zip",
+      "modVersion": "1.0.0",
+      "declaredSha256": "42fee1aa3770226090e015e879e66e8c397c91eadfbe1448063013707f2fa339",
+      "declaredMatches": true,
+      "scannedUtc": "2026-08-16T05:08:01Z",
+      "permalink": "https://www.virustotal.com/gui/file/42fee1aa3770226090e015e879e66e8c397c91eadfbe1448063013707f2fa339",
+      "enginesTotal": 67,
+      "detections": 0,
+      "malicious": 0,
+      "suspicious": 0,
+      "detectedBy": [],
+      "status": "completed",
+      "analyzedUtc": "2026-08-16T05:08:01Z",
+      "analysisId": "MTc4NWU1ZGIyMTk2YTY1N2NhZGY3M2MyZTIwNjgwNzk6MTc4Njg1NjgyMg==",
+      "source": "upload"
+    },
+    {
       "sha256": "b4a1660b02a238a6c7b0ef14954524ba3bdf912902a22a052e77db213f714e3f",
       "fileName": "PunkSeedPicker-v1.0.0.zip",
       "sizeBytes": 11349,

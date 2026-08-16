@@ -3,6 +3,26 @@
   "modId": "PunkUiFixes",
   "scans": [
     {
+      "sha256": "c9bcd15274260700a1fd94f4fedbafee3cd3126197908f56553641e5602d5262",
+      "fileName": "PunkUiFixes-v1.0.0.zip",
+      "sizeBytes": 4246,
+      "downloadUrl": "https://github.com/Osanchez/PunkMods/releases/download/v2026.08.15.20/PunkUiFixes-v1.0.0.zip",
+      "modVersion": "1.0.0",
+      "declaredSha256": "c9bcd15274260700a1fd94f4fedbafee3cd3126197908f56553641e5602d5262",
+      "declaredMatches": true,
+      "scannedUtc": "2026-08-16T05:12:03Z",
+      "permalink": "https://www.virustotal.com/gui/file/c9bcd15274260700a1fd94f4fedbafee3cd3126197908f56553641e5602d5262",
+      "enginesTotal": 67,
+      "detections": 0,
+      "malicious": 0,
+      "suspicious": 0,
+      "detectedBy": [],
+      "status": "completed",
+      "analyzedUtc": "2026-08-16T05:12:03Z",
+      "analysisId": "YjdmM2U2YzIwOWJkMzc5ODJiNDRiMDc4NjczYTZjNTc6MTc4Njg1NzA2NQ==",
+      "source": "upload"
+    },
+    {
       "sha256": "e9e5899267881a169145b06d2050b6d545cfd95d957615bd27b07538c1eb36e6",
       "fileName": "PunkUiFixes-v1.0.0.zip",
       "sizeBytes": 4245,

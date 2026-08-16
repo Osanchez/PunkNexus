@@ -3,6 +3,26 @@
   "modId": "PunkModsMenu",
   "scans": [
     {
+      "sha256": "51393cafe7faab658d0e1bc70f2ca0fe699377f0efb7c6fba9925e86799bb345",
+      "fileName": "PunkModsMenu-v2.1.0.zip",
+      "sizeBytes": 17185,
+      "downloadUrl": "https://github.com/Osanchez/PunkMods/releases/download/v2026.08.15.20/PunkModsMenu-v2.1.0.zip",
+      "modVersion": "2.1.0",
+      "declaredSha256": "51393cafe7faab658d0e1bc70f2ca0fe699377f0efb7c6fba9925e86799bb345",
+      "declaredMatches": true,
+      "scannedUtc": "2026-08-16T04:52:53Z",
+      "permalink": "https://www.virustotal.com/gui/file/51393cafe7faab658d0e1bc70f2ca0fe699377f0efb7c6fba9925e86799bb345",
+      "enginesTotal": 67,
+      "detections": 0,
+      "malicious": 0,
+      "suspicious": 0,
+      "detectedBy": [],
+      "status": "completed",
+      "analyzedUtc": "2026-08-16T04:52:53Z",
+      "analysisId": "MGVkMTIwOTQ5MDRjMzYxYmMzZjJlZDM3NGYyN2I5MzU6MTc4Njg1NTkxNA==",
+      "source": "upload"
+    },
+    {
       "sha256": "8e365628076e7ddc4f037b0e74754cd9492855cc450b5dec8aa7dd85f66fab92",
       "fileName": "PunkModsMenu-v2.1.0.zip",
       "sizeBytes": 17184,

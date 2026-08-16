@@ -3,6 +3,26 @@
   "modId": "PunkFourPlayer",
   "scans": [
     {
+      "sha256": "3aeb172c38d5eca5c200188d368bdc22af5395ff8c256b2aba69005a005f6c04",
+      "fileName": "PunkFourPlayer-v0.2.1.zip",
+      "sizeBytes": 23857,
+      "downloadUrl": "https://github.com/Osanchez/PunkMods/releases/download/v2026.08.15.20/PunkFourPlayer-v0.2.1.zip",
+      "modVersion": "0.2.1",
+      "declaredSha256": "3aeb172c38d5eca5c200188d368bdc22af5395ff8c256b2aba69005a005f6c04",
+      "declaredMatches": true,
+      "scannedUtc": "2026-08-16T04:53:53Z",
+      "permalink": "https://www.virustotal.com/gui/file/3aeb172c38d5eca5c200188d368bdc22af5395ff8c256b2aba69005a005f6c04",
+      "enginesTotal": 67,
+      "detections": 0,
+      "malicious": 0,
+      "suspicious": 0,
+      "detectedBy": [],
+      "status": "completed",
+      "analyzedUtc": "2026-08-16T04:53:53Z",
+      "analysisId": "ZjI3OGYzOTkyMjZkODU4NDZkZDcwNTQ5MWU4ZTMxYjA6MTc4Njg1NTk3NQ==",
+      "source": "upload"
+    },
+    {
       "sha256": "11b80644698b1207d6c4cbb8f8f3db9bc0cd4207b03204bde463acc215e2a9e1",
       "fileName": "PunkFourPlayer-v0.2.1.zip",
       "sizeBytes": 23849,

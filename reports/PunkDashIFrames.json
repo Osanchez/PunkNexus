@@ -3,6 +3,26 @@
   "modId": "PunkDashIFrames",
   "scans": [
     {
+      "sha256": "50c81508e028f254c6791d77b00b1a47e77353a98e7a15f5bbb03a90810ba301",
+      "fileName": "PunkDashIFrames-v1.0.0.zip",
+      "sizeBytes": 6319,
+      "downloadUrl": "https://github.com/Osanchez/PunkMods/releases/download/v2026.08.15.20/PunkDashIFrames-v1.0.0.zip",
+      "modVersion": "1.0.0",
+      "declaredSha256": "50c81508e028f254c6791d77b00b1a47e77353a98e7a15f5bbb03a90810ba301",
+      "declaredMatches": true,
+      "scannedUtc": "2026-08-16T05:00:57Z",
+      "permalink": "https://www.virustotal.com/gui/file/50c81508e028f254c6791d77b00b1a47e77353a98e7a15f5bbb03a90810ba301",
+      "enginesTotal": 67,
+      "detections": 0,
+      "malicious": 0,
+      "suspicious": 0,
+      "detectedBy": [],
+      "status": "completed",
+      "analyzedUtc": "2026-08-16T05:00:57Z",
+      "analysisId": "ZmE2Mzk2NTM4ZjZhNWRlOTlhY2Y1ZmI2YmE1YmEzYzE6MTc4Njg1NjMzNg==",
+      "source": "upload"
+    },
+    {
       "sha256": "b3e5233e5d6fc57c7d243cba4fd36688c941342f58e3dfb49ce762f5610e6cd9",
       "fileName": "PunkDashIFrames-v1.0.0.zip",
       "sizeBytes": 6319,

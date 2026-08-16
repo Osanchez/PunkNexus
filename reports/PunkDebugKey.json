@@ -3,6 +3,26 @@
   "modId": "PunkDebugKey",
   "scans": [
     {
+      "sha256": "7d9b2f6d0d7e199cb2467cc4516e481d5cd24a186d69e9afe02d58854c14a32d",
+      "fileName": "PunkDebugKey-v2.1.0.zip",
+      "sizeBytes": 5620,
+      "downloadUrl": "https://github.com/Osanchez/PunkMods/releases/download/v2026.08.15.20/PunkDebugKey-v2.1.0.zip",
+      "modVersion": "2.1.0",
+      "declaredSha256": "7d9b2f6d0d7e199cb2467cc4516e481d5cd24a186d69e9afe02d58854c14a32d",
+      "declaredMatches": true,
+      "scannedUtc": "2026-08-16T05:13:03Z",
+      "permalink": "https://www.virustotal.com/gui/file/7d9b2f6d0d7e199cb2467cc4516e481d5cd24a186d69e9afe02d58854c14a32d",
+      "enginesTotal": 67,
+      "detections": 0,
+      "malicious": 0,
+      "suspicious": 0,
+      "detectedBy": [],
+      "status": "completed",
+      "analyzedUtc": "2026-08-16T05:13:03Z",
+      "analysisId": "NWUwOWU4MDlmOGU1YmY3ZjJmMjA5NDllYzQxNWVhNjk6MTc4Njg1NzEyNQ==",
+      "source": "upload"
+    },
+    {
       "sha256": "70784c9102990d03be30e41707d6cfecafaaf625356be5f9d81dd134770c39d5",
       "fileName": "PunkDebugKey-v2.1.0.zip",
       "sizeBytes": 5624,

@@ -3,6 +3,26 @@
   "modId": "PunkReviveItem",
   "scans": [
     {
+      "sha256": "e79c0d0888c0ac1c0438c009b21af5d7a52325e740ab5fe47bd465ae6aaee6af",
+      "fileName": "PunkReviveItem-v1.0.0.zip",
+      "sizeBytes": 7473,
+      "downloadUrl": "https://github.com/Osanchez/PunkMods/releases/download/v2026.08.15.20/PunkReviveItem-v1.0.0.zip",
+      "modVersion": "1.0.0",
+      "declaredSha256": "e79c0d0888c0ac1c0438c009b21af5d7a52325e740ab5fe47bd465ae6aaee6af",
+      "declaredMatches": true,
+      "scannedUtc": "2026-08-16T05:01:58Z",
+      "permalink": "https://www.virustotal.com/gui/file/e79c0d0888c0ac1c0438c009b21af5d7a52325e740ab5fe47bd465ae6aaee6af",
+      "enginesTotal": 67,
+      "detections": 0,
+      "malicious": 0,
+      "suspicious": 0,
+      "detectedBy": [],
+      "status": "completed",
+      "analyzedUtc": "2026-08-16T05:01:58Z",
+      "analysisId": "MDEyNjBhZDgwMTk2Y2VmNWQ3NmUwOTM3NTEzYzY3YmI6MTc4Njg1NjQ1OQ==",
+      "source": "upload"
+    },
+    {
       "sha256": "7a9b8076d5df8376fdebdf540d21986666f6d49ab499269e3b8dcf367644130e",
       "fileName": "PunkReviveItem-v1.0.0.zip",
       "sizeBytes": 7480,

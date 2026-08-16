@@ -3,6 +3,26 @@
   "modId": "PunkMetaLoadout",
   "scans": [
     {
+      "sha256": "67f6aa0a1c5c6dad5e5041ca8e358829aae02d47ca14890f407a3f1357a04ea3",
+      "fileName": "PunkMetaLoadout-v2.1.0.zip",
+      "sizeBytes": 19442,
+      "downloadUrl": "https://github.com/Osanchez/PunkMods/releases/download/v2026.08.15.20/PunkMetaLoadout-v2.1.0.zip",
+      "modVersion": "2.1.0",
+      "declaredSha256": "67f6aa0a1c5c6dad5e5041ca8e358829aae02d47ca14890f407a3f1357a04ea3",
+      "declaredMatches": true,
+      "scannedUtc": "2026-08-16T05:07:00Z",
+      "permalink": "https://www.virustotal.com/gui/file/67f6aa0a1c5c6dad5e5041ca8e358829aae02d47ca14890f407a3f1357a04ea3",
+      "enginesTotal": 67,
+      "detections": 0,
+      "malicious": 0,
+      "suspicious": 0,
+      "detectedBy": [],
+      "status": "completed",
+      "analyzedUtc": "2026-08-16T05:07:00Z",
+      "analysisId": "Y2UwOGVhZTU4OTk4MmM3YWU3NmU0NmI2YjdlNzFiZTc6MTc4Njg1Njc2MA==",
+      "source": "upload"
+    },
+    {
       "sha256": "57869bb25a7a8641bccab9fc88b7b8f800d4f10d992117c6cbfb07e0493f5769",
       "fileName": "PunkMetaLoadout-v2.0.0.zip",
       "sizeBytes": 18374,

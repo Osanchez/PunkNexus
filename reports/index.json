@@ -62,10 +62,10 @@
       "sizeBytes": 21603,
       "modVersion": "1.0.0",
       "declaredMatches": true,
-      "scannedUtc": "2026-08-16T04:57:57Z",
-      "analyzedUtc": null,
-      "status": "queued",
-      "enginesTotal": 0,
+      "scannedUtc": "2026-08-17T05:00:40Z",
+      "analyzedUtc": "2026-08-16T04:55:56Z",
+      "status": "completed",
+      "enginesTotal": 64,
       "detections": 0,
       "detectedBy": [],
       "permalink": "https://www.virustotal.com/gui/file/570e81a14ea29d5cae013df2a69aba995da09f9b9182f4cbdfc086394ebaa7fa",
@@ -164,10 +164,10 @@
       "sizeBytes": 8531,
       "modVersion": "2.0.0",
       "declaredMatches": true,
-      "scannedUtc": "2026-08-16T05:05:01Z",
-      "analyzedUtc": null,
-      "status": "queued",
-      "enginesTotal": 0,
+      "scannedUtc": "2026-08-17T05:00:42Z",
+      "analyzedUtc": "2026-08-16T05:03:00Z",
+      "status": "completed",
+      "enginesTotal": 66,
       "detections": 0,
       "detectedBy": [],
       "permalink": "https://www.virustotal.com/gui/file/0d58f7607e0e2473f9c8ddc63d50a1c713b9a75d2d7ac4440f57c1b5abf26a47",
@@ -293,5 +293,5 @@
       "reportPath": "reports/WeaponForge.json"
     }
   ],
-  "updatedUtc": "2026-08-16T05:15:04Z"
+  "updatedUtc": "2026-08-17T05:00:43Z"
 }

@@ -10,17 +10,16 @@
       "modVersion": "1.0.0",
       "declaredSha256": "570e81a14ea29d5cae013df2a69aba995da09f9b9182f4cbdfc086394ebaa7fa",
       "declaredMatches": true,
-      "scannedUtc": "2026-08-16T04:57:57Z",
+      "scannedUtc": "2026-08-17T05:00:40Z",
       "permalink": "https://www.virustotal.com/gui/file/570e81a14ea29d5cae013df2a69aba995da09f9b9182f4cbdfc086394ebaa7fa",
-      "status": "queued",
-      "analysisId": "N2Q1ZDIxMTZmNTg4OWE3MWI5YmJlMmZkNjBmZjU3NDU6MTc4Njg1NjE1Ng==",
-      "analyzedUtc": null,
-      "enginesTotal": 0,
+      "enginesTotal": 64,
       "detections": 0,
       "malicious": 0,
       "suspicious": 0,
       "detectedBy": [],
-      "source": "upload"
+      "status": "completed",
+      "analyzedUtc": "2026-08-16T04:55:56Z",
+      "source": "lookup"
     },
     {
       "sha256": "081aa57c79edb60d0c8b2ddb50e3f212f89587e9b7b011fa88e767832325fa84",
